@@ -38,9 +38,9 @@ final class PlatformDependent0 {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PlatformDependent0.class);
     private static final long ADDRESS_FIELD_OFFSET;
-    private static final long BYTE_ARRAY_BASE_OFFSET;
-    private static final Constructor<?> DIRECT_BUFFER_CONSTRUCTOR;
-    private static final Throwable EXPLICIT_NO_UNSAFE_CAUSE = explicitNoUnsafeCause0();
+    private static final long BYTE_ARRAY_BASE_OFFSET; //可以通过该地址直接获取在内存中的初始地址， 参考https://www.jianshu.com/p/9819eb48716a
+    private static final Constructor<?> DIRECT_BUFFER_CONSTRUCTOR;//就是DirectByteBuff对象构造器，参数包括直接内存address
+    private static final Throwable EXPLICIT_NO_UNSAFE_CAUSE = explicitNoUnsafeCause0();//是否明确不让使用Unsafe
     private static final Method ALLOCATE_ARRAY_METHOD;
     private static final int JAVA_VERSION = javaVersion0();
     private static final boolean IS_ANDROID = isAndroid0();
@@ -49,7 +49,7 @@ final class PlatformDependent0 {
     private static final Object INTERNAL_UNSAFE;
     private static final boolean IS_EXPLICIT_TRY_REFLECTION_SET_ACCESSIBLE = explicitTryReflectionSetAccessible0();
 
-    static final Unsafe UNSAFE;
+    static final Unsafe UNSAFE;//通过反射拿到的
 
     // constants borrowed from murmur3
     static final int HASH_CODE_ASCII_SEED = 0xc2b2ae35;
@@ -78,14 +78,14 @@ final class PlatformDependent0 {
             unsafe = null;
             internalUnsafe = null;
         } else {
-            direct = ByteBuffer.allocateDirect(1);
+            direct = ByteBuffer.allocateDirect(1); //这里只是尝试分配一个内存
 
             // attempt to access field Unsafe#theUnsafe
             final Object maybeUnsafe = AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 @Override
                 public Object run() {
                     try {
-                        final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+                        final Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");//反射， 强制获取该类属性
                         // We always want to try using Unsafe as the access still works on java9 as well and
                         // we need it for out native-transports and many optimizations.
                         Throwable cause = ReflectionUtil.trySetAccessible(unsafeField, false);
@@ -93,7 +93,7 @@ final class PlatformDependent0 {
                             return cause;
                         }
                         // the unsafe instance
-                        return unsafeField.get(null);
+                        return unsafeField.get(null); //强制获取Unsafe类
                     } catch (NoSuchFieldException e) {
                         return e;
                     } catch (SecurityException e) {
@@ -215,7 +215,7 @@ final class PlatformDependent0 {
             Constructor<?> directBufferConstructor;
             long address = -1;
             try {
-                final Object maybeDirectBufferConstructor =
+                final Object maybeDirectBufferConstructor = //返回的是DirectByteBuff的构造器
                         AccessController.doPrivileged(new PrivilegedAction<Object>() {
                             @Override
                             public Object run() {
@@ -241,7 +241,7 @@ final class PlatformDependent0 {
                     try {
                         ((Constructor<?>) maybeDirectBufferConstructor).newInstance(address, 1);
                         directBufferConstructor = (Constructor<?>) maybeDirectBufferConstructor;
-                        logger.debug("direct buffer constructor: available");
+                        logger.debug("direct buffer constructor: available"); //这里是尝试产生一个直接内存测试一用
                     } catch (InstantiationException e) {
                         directBufferConstructor = null;
                     } catch (IllegalAccessException e) {
@@ -257,7 +257,7 @@ final class PlatformDependent0 {
                 }
             } finally {
                 if (address != -1) {
-                    UNSAFE.freeMemory(address);
+                    UNSAFE.freeMemory(address);  //测试完成后再释放这个节点
                 }
             }
             DIRECT_BUFFER_CONSTRUCTOR = directBufferConstructor;
@@ -289,7 +289,7 @@ final class PlatformDependent0 {
                                 // We did not find the field we expected, move on.
                             }
                         }
-                        Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");
+                        Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");//调用静态方法，获得不对齐
                         Throwable cause = ReflectionUtil.trySetAccessible(unalignedMethod, true);
                         if (cause != null) {
                             return cause;
@@ -391,7 +391,7 @@ final class PlatformDependent0 {
         return EXPLICIT_NO_UNSAFE_CAUSE != null;
     }
 
-    private static Throwable explicitNoUnsafeCause0() {
+    private static Throwable explicitNoUnsafeCause0() {//明确地
         final boolean noUnsafe = SystemPropertyUtil.getBoolean("io.netty.noUnsafe", false);
         logger.debug("-Dio.netty.noUnsafe: {}", noUnsafe);
 
@@ -471,7 +471,7 @@ final class PlatformDependent0 {
         ObjectUtil.checkPositiveOrZero(capacity, "capacity");
 
         try {
-            return (ByteBuffer) DIRECT_BUFFER_CONSTRUCTOR.newInstance(address, capacity);
+            return (ByteBuffer) DIRECT_BUFFER_CONSTRUCTOR.newInstance(address, capacity); //通过它构建DirectByteBuff对象
         } catch (Throwable cause) {
             // Not expected to ever throw!
             if (cause instanceof Error) {

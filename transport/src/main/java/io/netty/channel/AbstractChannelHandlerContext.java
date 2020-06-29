@@ -68,7 +68,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     /**
      * {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} is about to be called.
      */
-    private static final int ADD_PENDING = 1;
+    private static final int ADD_PENDING = 1;  //当前Context有挂起的任务，当handler added之后会执行该任务
     /**
      * {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} was called.
      */
@@ -111,7 +111,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     @Override
     public Channel channel() {
-        return pipeline.channel();
+        return pipeline.channel(); //NioSocketChannel
     }
 
     @Override
@@ -125,7 +125,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     @Override
-    public EventExecutor executor() {
+    public EventExecutor executor() {  //若为空，就返回该pipLine拥有的chanel的executor， 即NioEventLoop
         if (executor == null) {
             return channel().eventLoop();
         } else {
@@ -203,7 +203,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     @Override
-    public ChannelHandlerContext fireChannelActive() {
+    public ChannelHandlerContext fireChannelActive() {//激或Channel激活的消息从继续最外成向最里面发送
         invokeChannelActive(findContextInbound(MASK_CHANNEL_ACTIVE));
         return this;
     }
@@ -223,7 +223,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     private void invokeChannelActive() {
-        if (invokeHandler()) {
+        if (invokeHandler()) { //本层context发出channelActive函数，实际是从HeadContext层发出的
             try {
                 ((ChannelInboundHandler) handler()).channelActive(this);
             } catch (Throwable t) {
@@ -350,17 +350,17 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
-    @Override
+    @Override  //触发链上每个channelRead()函数
     public ChannelHandlerContext fireChannelRead(final Object msg) {
-        invokeChannelRead(findContextInbound(MASK_CHANNEL_READ), msg);
+        invokeChannelRead(findContextInbound(MASK_CHANNEL_READ), msg);//触发链上服务器端里面传播接收到的信号
         return this;
     }
-
-    static void invokeChannelRead(final AbstractChannelHandlerContext next, Object msg) {
-        final Object m = next.pipeline.touch(ObjectUtil.checkNotNull(msg, "msg"), next);
-        EventExecutor executor = next.executor();
-        if (executor.inEventLoop()) {
-            next.invokeChannelRead(m);
+   //每个context， 都会从这里调用开始， 注意看是一个static函数
+    static void invokeChannelRead(final AbstractChannelHandlerContext next, Object msg) { ////msg是新建立的NioSocketChannel
+        final Object m = next.pipeline.touch(ObjectUtil.checkNotNull(msg, "msg"), next); //pipe是同一个，
+        EventExecutor executor = next.executor(); //executor = NioEventLoop， 因为
+        if (executor.inEventLoop()) { //本线程是否是EventLoop线程
+            next.invokeChannelRead(m); //DefaultChannelHandlerContext， 即为下面这个类
         } else {
             executor.execute(new Runnable() {
                 @Override
@@ -370,7 +370,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             });
         }
     }
-
+   //HeadContext本身没有复写该类，会调用
     private void invokeChannelRead(Object msg) {
         if (invokeHandler()) {
             try {
@@ -483,7 +483,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             return promise;
         }
 
-        final AbstractChannelHandlerContext next = findContextOutbound(MASK_BIND);
+        final AbstractChannelHandlerContext next = findContextOutbound(MASK_BIND);//从当前位置，向head，找到一个out的
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
             next.invokeBind(localAddress, promise);
@@ -663,10 +663,10 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     @Override
     public ChannelHandlerContext read() {
-        final AbstractChannelHandlerContext next = findContextOutbound(MASK_READ);
+        final AbstractChannelHandlerContext next = findContextOutbound(MASK_READ);//找out一般是从尾向头找
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
-            next.invokeRead();
+            next.invokeRead();//修改NioServerSocketChannel为accept属性，即可
         } else {
             Tasks tasks = next.invokeTasks;
             if (tasks == null) {
@@ -681,7 +681,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private void invokeRead() {
         if (invokeHandler()) {
             try {
-                ((ChannelOutboundHandler) handler()).read(this);
+                ((ChannelOutboundHandler) handler()).read(this); //触发可读属性
             } catch (Throwable t) {
                 notifyHandlerException(t);
             }
@@ -695,7 +695,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return write(msg, newPromise());
     }
 
-    @Override
+    @Override   //msg: DefaultFullHttpResponse, msg=PooledUnsafeDirectByteBuf
     public ChannelFuture write(final Object msg, final ChannelPromise promise) {
         write(msg, false, promise);
 
@@ -711,8 +711,8 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     private void invokeWrite0(Object msg, ChannelPromise promise) {
-        try {
-            ((ChannelOutboundHandler) handler()).write(this, msg, promise);
+        try {//继续向外传递
+            ((ChannelOutboundHandler) handler()).write(this, msg, promise);//找到定义的handler，将信息发送出去
         } catch (Throwable t) {
             notifyOutboundHandlerException(t, promise);
         }
@@ -779,7 +779,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             throw e;
         }
 
-        final AbstractChannelHandlerContext next = findContextOutbound(flush ?
+        final AbstractChannelHandlerContext next = findContextOutbound(flush ? //向外发送，找到一个拥有out的context
                 (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
         final Object m = pipeline.touch(msg, next);
         EventExecutor executor = next.executor();
@@ -790,7 +790,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                 next.invokeWrite(m, promise);
             }
         } else {
-            final WriteTask task = WriteTask.newInstance(next, m, promise, flush);
+            final WriteTask task = WriteTask.newInstance(next, m, promise, flush); //这个task是一个Runnable, 只需要向里面放， 后期自然会执行
             if (!safeExecute(executor, task, promise, m, !flush)) {
                 // We failed to submit the WriteTask. We need to cancel it so we decrement the pending bytes
                 // and put it back in the Recycler for re-use later.
@@ -903,15 +903,15 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
         return false;
     }
-
-    private AbstractChannelHandlerContext findContextInbound(int mask) {
+    //在这个链上的一环，默认仅仅找到下一个inBound
+    private AbstractChannelHandlerContext findContextInbound(int mask) {//从Head当前位置找，直到向后找到一个inbound的，就退出
         AbstractChannelHandlerContext ctx = this;
         do {
-            ctx = ctx.next;
+            ctx = ctx.next;//直接找下一个
         } while ((ctx.executionMask & mask) == 0);
         return ctx;
     }
-
+    //从当前位置向前找，找到一个为out属性的context
     private AbstractChannelHandlerContext findContextOutbound(int mask) {
         AbstractChannelHandlerContext ctx = this;
         do {

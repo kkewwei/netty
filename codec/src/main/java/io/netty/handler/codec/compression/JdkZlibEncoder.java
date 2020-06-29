@@ -188,34 +188,34 @@ public class JdkZlibEncoder extends ZlibEncoder {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf uncompressed, ByteBuf out) throws Exception {
-        if (finished) {
+        if (finished) { //开始真正编码
             out.writeBytes(uncompressed);
             return;
         }
 
-        int len = uncompressed.readableBytes();
+        int len = uncompressed.readableBytes(); //总共刻度数据
         if (len == 0) {
             return;
         }
 
         int offset;
-        byte[] inAry;
-        if (uncompressed.hasArray()) {
+        byte[] inAry; //直接是个数据
+        if (uncompressed.hasArray()) {  //若是个数组， 就直接不用copy了，把底层数据直接拿过来用
             // if it is backed by an array we not need to to do a copy at all
             inAry = uncompressed.array();
             offset = uncompressed.arrayOffset() + uncompressed.readerIndex();
             // skip all bytes as we will consume all of them
-            uncompressed.skipBytes(len);
+            uncompressed.skipBytes(len); //读取的数据， 直接跳过数组的长度
         } else {
             inAry = new byte[len];
-            uncompressed.readBytes(inAry);
+            uncompressed.readBytes(inAry);//将数据读取到这个byte数组中
             offset = 0;
         }
 
-        if (writeHeader) {
+        if (writeHeader) { //将数组写进去， 最开始编码，需要写
             writeHeader = false;
             if (wrapper == ZlibWrapper.GZIP) {
-                out.writeBytes(gzipHeader);
+                out.writeBytes(gzipHeader);//首先写进去头
             }
         }
 
@@ -223,9 +223,9 @@ public class JdkZlibEncoder extends ZlibEncoder {
             crc.update(inAry, offset, len);
         }
 
-        deflater.setInput(inAry, offset, len);
+        deflater.setInput(inAry, offset, len); //向压缩器中传递带压缩的数组
         for (;;) {
-            deflate(out);
+            deflate(out);//进行真正的压缩
             if (deflater.needsInput()) {
                 // Consumed everything
                 break;
@@ -260,7 +260,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
 
     @Override
     public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) throws Exception {
-        ChannelFuture f = finishEncode(ctx, ctx.newPromise());
+        ChannelFuture f = finishEncode(ctx, ctx.newPromise()); //这里会产生一个
         f.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture f) throws Exception {
@@ -286,14 +286,14 @@ public class JdkZlibEncoder extends ZlibEncoder {
         }
 
         finished = true;
-        ByteBuf footer = ctx.alloc().heapBuffer();
+        ByteBuf footer = ctx.alloc().heapBuffer(); //编码结束后，还会产生footer部分, 默认defalult大小为256byte
         if (writeHeader && wrapper == ZlibWrapper.GZIP) {
             // Write the GZIP header first if not written yet. (i.e. user wrote nothing.)
             writeHeader = false;
             footer.writeBytes(gzipHeader);
         }
 
-        deflater.finish();
+        deflater.finish(); //压缩完成
 
         while (!deflater.finished()) {
             deflate(footer);
@@ -303,13 +303,13 @@ public class JdkZlibEncoder extends ZlibEncoder {
                 footer = ctx.alloc().heapBuffer();
             }
         }
-        if (wrapper == ZlibWrapper.GZIP) {
+        if (wrapper == ZlibWrapper.GZIP) { //若是gzip,还的加
             int crcValue = (int) crc.getValue();
             int uncBytes = deflater.getTotalIn();
-            footer.writeByte(crcValue);
-            footer.writeByte(crcValue >>> 8);
-            footer.writeByte(crcValue >>> 16);
-            footer.writeByte(crcValue >>> 24);
+            footer.writeByte(crcValue);//只写低位
+            footer.writeByte(crcValue >>> 8); //中位
+            footer.writeByte(crcValue >>> 16);//高位
+            footer.writeByte(crcValue >>> 24);//最高位
             footer.writeByte(uncBytes);
             footer.writeByte(uncBytes >>> 8);
             footer.writeByte(uncBytes >>> 16);
@@ -327,10 +327,10 @@ public class JdkZlibEncoder extends ZlibEncoder {
         int numBytes;
         do {
             int writerIndex = out.writerIndex();
-            numBytes = deflater.deflate(
-                    out.array(), out.arrayOffset() + writerIndex, out.writableBytes(), Deflater.SYNC_FLUSH);
+            numBytes = deflater.deflate(//out：压缩之后存放的缓冲区，
+                    out.array(), out.arrayOffset() + writerIndex, out.writableBytes(), Deflater.SYNC_FLUSH); //异步刷新
             out.writerIndex(writerIndex + numBytes);
-        } while (numBytes > 0);
+        } while (numBytes > 0); //返回为0代表压缩完了
     }
 
     private void deflateJdk6(ByteBuf out) {

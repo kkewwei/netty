@@ -93,7 +93,7 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         boolean release = true;
         try {
-            if (acceptInboundMessage(msg)) {
+            if (acceptInboundMessage(msg)) { //msg里面content已经retcount=2了
                 @SuppressWarnings("unchecked")
                 I imsg = (I) msg;
                 channelRead0(ctx, imsg);
@@ -102,7 +102,7 @@ public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandl
                 ctx.fireChannelRead(msg);
             }
         } finally {
-            if (autoRelease && release) {
+            if (autoRelease && release) {   //默认都会自动释放
                 ReferenceCountUtil.release(msg);
             }
         }

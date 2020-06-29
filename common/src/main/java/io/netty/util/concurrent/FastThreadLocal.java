@@ -163,7 +163,7 @@ public class FastThreadLocal<V> {
      */
     @SuppressWarnings("unchecked")
     public final V get(InternalThreadLocalMap threadLocalMap) {
-        Object v = threadLocalMap.indexedVariable(index);
+        Object v = threadLocalMap.indexedVariable(index); //想得到该层级缓存，发现没有，那么只能去初始话一个
         if (v != InternalThreadLocalMap.UNSET) {
             return (V) v;
         }

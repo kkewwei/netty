@@ -214,7 +214,7 @@ public class EmbeddedChannel extends AbstractChannel {
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
-                for (ChannelHandler h: handlers) {
+                for (ChannelHandler h: handlers) { //handler = JdkZlibDecoder
                     if (h == null) {
                         break;
                     }
@@ -415,7 +415,7 @@ public class EmbeddedChannel extends AbstractChannel {
             int size = futures.size();
             for (int i = 0; i < size; i++) {
                 ChannelFuture future = (ChannelFuture) futures.get(i);
-                if (future.isDone()) {
+                if (future.isDone()) { //检查编码是否完成，没完成则抛出异常
                     recordException(future);
                 } else {
                     // The write may be delayed to run later by runPendingTasks()
@@ -500,7 +500,7 @@ public class EmbeddedChannel extends AbstractChannel {
      * @return bufferReadable returns {@code true} if any of the used buffers has something left to read
      */
     private boolean finish(boolean releaseAll) {
-        close();
+        close(); //会产生footer channel
         try {
             checkException();
             return isNotEmpty(inboundMessages) || isNotEmpty(outboundMessages);
@@ -746,7 +746,7 @@ public class EmbeddedChannel extends AbstractChannel {
 
             ReferenceCountUtil.retain(msg);
             handleOutboundMessage(msg);
-            in.remove();
+            in.remove();//里面会降水位
         }
     }
 

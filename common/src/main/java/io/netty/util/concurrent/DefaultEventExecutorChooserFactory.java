@@ -31,8 +31,8 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
     @SuppressWarnings("unchecked")
     @Override
-    public EventExecutorChooser newChooser(EventExecutor[] executors) {
-        if (isPowerOfTwo(executors.length)) {
+    public EventExecutorChooser newChooser(EventExecutor[] executors) {  //就是选择NIOEventLoop的方式
+        if (isPowerOfTwo(executors.length)) {  //两种策略的结果是一样的，都是轮训式选取NioEventLoop，区别就是2^n，选取位运算，效率较高
             return new PowerOfTwoEventExecutorChooser(executors);
         } else {
             return new GenericEventExecutorChooser(executors);
@@ -45,12 +45,12 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
     private static final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
         private final AtomicInteger idx = new AtomicInteger();
-        private final EventExecutor[] executors;
+        private final EventExecutor[] executors; //NioEventLoop
 
         PowerOfTwoEventExecutorChooser(EventExecutor[] executors) {
             this.executors = executors;
         }
-
+        //轮训选择
         @Override
         public EventExecutor next() {
             return executors[idx.getAndIncrement() & executors.length - 1];
@@ -64,7 +64,7 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
         GenericEventExecutorChooser(EventExecutor[] executors) {
             this.executors = executors;
         }
-
+        //轮训选择
         @Override
         public EventExecutor next() {
             return executors[Math.abs(idx.getAndIncrement() % executors.length)];

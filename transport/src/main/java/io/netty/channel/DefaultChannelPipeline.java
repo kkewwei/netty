@@ -81,21 +81,21 @@ public class DefaultChannelPipeline implements ChannelPipeline {
      * Thus full iterations to do insertions is assumed to be a good compromised to saving memory and tail management
      * complexity.
      */
-    private PendingHandlerCallback pendingHandlerCallbackHead;
+    private PendingHandlerCallback pendingHandlerCallbackHead; //这个链保作为task链
 
     /**
      * Set to {@code true} once the {@link AbstractChannel} is registered.Once set to {@code true} the value will never
      * change.
      */
-    private boolean registered;
+    private boolean registered;  //NioServerSocketChannel是否注册到Selector上面，
 
     protected DefaultChannelPipeline(Channel channel) {
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
         succeededFuture = new SucceededChannelFuture(channel, null);
         voidPromise =  new VoidChannelPromise(channel, true);
 
-        tail = new TailContext(this);
-        head = new HeadContext(this);
+        tail = new TailContext(this);   //只是in
+        head = new HeadContext(this);  //in out都是
 
         head.next = tail;
         tail.prev = head;
@@ -144,7 +144,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
     @Override
     public final Channel channel() {
-        return channel;
+        return channel; // CopyBytesSocketChannel
     }
 
     @Override
@@ -208,13 +208,13 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             // If the registered is false it means that the channel was not registered on an eventLoop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
-            if (!registered) {
+            if (!registered) {//只有这个channel被register到某个具体的EventLoop后，才会考虑执行一些任务，这里考虑的任务是将对应的handler加入到对应的pipe中,DefaultChannelPipeline是与NioServerSocketChannel一一对应的
                 newCtx.setAddPending();
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
 
-            EventExecutor executor = newCtx.executor();
+            EventExecutor executor = newCtx.executor(); //对应一个NioEventLoop
             if (!executor.inEventLoop()) {
                 callHandlerAddedInEventLoop(newCtx, executor);
                 return this;
@@ -378,7 +378,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             if (h == null) {
                 break;
             }
-            addLast(executor, null, h);
+            addLast(executor, null, h); //只能等到
         }
 
         return this;
@@ -643,7 +643,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     final void invokeHandlerAddedIfNeeded() {
         assert channel.eventLoop().inEventLoop();
-        if (firstRegistration) {
+        if (firstRegistration) { //第一次
             firstRegistration = false;
             // We are now registered to the EventLoop. It's time to call the callbacks for the ChannelHandlers,
             // that were added before the registration was done.
@@ -810,7 +810,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return buf.toString();
     }
 
-    @Override
+    @Override  //完成channel register （向EventLoop注册channel）
     public final ChannelPipeline fireChannelRegistered() {
         AbstractChannelHandlerContext.invokeChannelRegistered(head);
         return this;
@@ -915,8 +915,8 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     @Override
-    public final ChannelPipeline fireChannelRead(Object msg) {
-        AbstractChannelHandlerContext.invokeChannelRead(head, msg);
+    public final ChannelPipeline fireChannelRead(Object msg) { //msg是新建立的SocketChannel
+        AbstractChannelHandlerContext.invokeChannelRead(head, msg); //fireChannelRead方法只是简单的往后传递事件，最终目的是向链中添加了
         return this;
     }
 
@@ -1112,7 +1112,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         // the EventLoop.
         PendingHandlerCallback task = pendingHandlerCallbackHead;
         while (task != null) {
-            task.execute();
+            task.execute(); //就是下面的1130行代码的PendingHandlerAddedTask
             task = task.next;
         }
     }
@@ -1305,7 +1305,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     final class HeadContext extends AbstractChannelHandlerContext
             implements ChannelOutboundHandler, ChannelInboundHandler {
 
-        private final Unsafe unsafe;
+        private final Unsafe unsafe; //NioMessageUnsafe
 
         HeadContext(DefaultChannelPipeline pipeline) {
             super(pipeline, null, HEAD_NAME, HeadContext.class);
@@ -1314,7 +1314,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         }
 
         @Override
-        public ChannelHandler handler() {
+        public ChannelHandler handler() { //注意 返回的是本身
             return this;
         }
 
@@ -1359,10 +1359,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         @Override
         public void read(ChannelHandlerContext ctx) {
-            unsafe.beginRead();
+            unsafe.beginRead(); //NioMessageUnsafe
         }
 
-        @Override
+        @Override//ctx:HeadContext, msg: CompositrByteBuf,     promise: DefaultChannelPromise
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             unsafe.write(msg, promise);
         }
@@ -1397,7 +1397,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         public void channelActive(ChannelHandlerContext ctx) {
             ctx.fireChannelActive();
 
-            readIfIsAutoRead();
+            readIfIsAutoRead(); //最终修改的是NioServerSocketChannel的accept属性
         }
 
         @Override
@@ -1405,7 +1405,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             ctx.fireChannelInactive();
         }
 
-        @Override
+        @Override//HeadContext的仅仅乡下床底
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             ctx.fireChannelRead(msg);
         }
@@ -1458,9 +1458,9 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         @Override
         void execute() {
-            EventExecutor executor = ctx.executor();
+            EventExecutor executor = ctx.executor();//executor == NioEventLoop
             if (executor.inEventLoop()) {
-                callHandlerAdded0(ctx);
+                callHandlerAdded0(ctx);//这个ctx加入时，检查是否需要执行一些任务
             } else {
                 try {
                     executor.execute(this);

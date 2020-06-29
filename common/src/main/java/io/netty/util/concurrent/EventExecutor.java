@@ -38,7 +38,7 @@ public interface EventExecutor extends EventExecutorGroup {
     /**
      * Calls {@link #inEventLoop(Thread)} with {@link Thread#currentThread()} as argument
      */
-    boolean inEventLoop();
+    boolean inEventLoop(); ////本线程是否是EventLoop里面的线程池启动的线程
 
     /**
      * Return {@code true} if the given {@link Thread} is executed in the event loop,

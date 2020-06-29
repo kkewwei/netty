@@ -26,7 +26,7 @@ import java.lang.reflect.Constructor;
  */
 public class ReflectiveChannelFactory<T extends Channel> implements ChannelFactory<T> {
 
-    private final Constructor<? extends T> constructor;
+    private final Constructor<? extends T> constructor; //服务器端一般指定为OioServerSocketChannel，客户端一般指定为OioSocketChannel
 
     public ReflectiveChannelFactory(Class<? extends T> clazz) {
         ObjectUtil.checkNotNull(clazz, "clazz");

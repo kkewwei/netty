@@ -39,7 +39,7 @@ final class UnsafeByteBufUtil {
         return PlatformDependent.getByte(address);
     }
 
-    static short getShort(long address) {
+    static short getShort(long address) { //这里address是直接内存地址， 直接获得
         if (UNALIGNED) {
             short v = PlatformDependent.getShort(address);
             return BIG_ENDIAN_NATIVE_ORDER ? v : Short.reverseBytes(v);
@@ -128,7 +128,7 @@ final class UnsafeByteBufUtil {
                (PlatformDependent.getByte(address + 6) & 0xffL) << 48 |
                ((long) PlatformDependent.getByte(address + 7))  << 56;
     }
-
+    //直接
     static void setByte(long address, int value) {
         PlatformDependent.putByte(address, (byte) value);
     }

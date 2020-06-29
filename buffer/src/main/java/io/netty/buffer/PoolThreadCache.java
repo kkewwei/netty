@@ -40,19 +40,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Scalable memory allocation using jemalloc</a>.
  */
 final class PoolThreadCache {
-
+    //内存分配优先在线程内分配，在PoolThreadCache中定义了tinySubPageHeapCaches、smallSubPageHeapCaches、normalHeapCaches分别在线程内缓存tiny、small、normall内存块，其中tiny块的个数为32个，small块的个数有pageSize来决定
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PoolThreadCache.class);
 
-    final PoolArena<byte[]> heapArena;
+    final PoolArena<byte[]> heapArena; //使用轮叫轮询机制，每个线程从heapArena[]中获取一个，用于内存分配。
     final PoolArena<ByteBuffer> directArena;
 
     // Hold the caches for the different size classes, which are tiny, small and normal.
-    private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;
-    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;
+    private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;//tiny内存缓存的个数。默认为512
+    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;//small内存缓存的个数,默认为256个
     private final MemoryRegionCache<ByteBuffer>[] tinySubPageDirectCaches;
     private final MemoryRegionCache<ByteBuffer>[] smallSubPageDirectCaches;
-    private final MemoryRegionCache<byte[]>[] normalHeapCaches;
-    private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;
+    private final MemoryRegionCache<byte[]>[] normalHeapCaches;  //normalCacheSize缓存的个数，默认为64
+    private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;  //Netty把大于pageSize小于chunkSize的空间成为normal内存
 
     // Used for bitshifting when calculate the index of normal caches later
     private final int numShiftsNormalDirect;
@@ -61,28 +61,28 @@ final class PoolThreadCache {
     private final AtomicBoolean freed = new AtomicBoolean();
 
     private int allocations;
-
+    // normalHeapCaches中单个缓存区域的最大大小，默认为32k  也就是normalHeapCaches[length-1]中缓存的最大内存空间
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
-
+    //tiny内存缓存的个数。默认为512 ，//small内存缓存的个数,默认为256个 //normalCacheSize缓存的个数，默认为64
     PoolThreadCache(PoolArena<byte[]> heapArena, PoolArena<ByteBuffer> directArena,
                     int tinyCacheSize, int smallCacheSize, int normalCacheSize,
                     int maxCachedBufferCapacity, int freeSweepAllocationThreshold) {
         checkPositiveOrZero(maxCachedBufferCapacity, "maxCachedBufferCapacity");
-        this.freeSweepAllocationThreshold = freeSweepAllocationThreshold;
+        this.freeSweepAllocationThreshold = freeSweepAllocationThreshold;//8192次
         this.heapArena = heapArena;
         this.directArena = directArena;
         if (directArena != null) {
-            tinySubPageDirectCaches = createSubPageCaches(
+            tinySubPageDirectCaches = createSubPageCaches(  //512，定义的tiny的比较多
                     tinyCacheSize, PoolArena.numTinySubpagePools, SizeClass.Tiny);
             smallSubPageDirectCaches = createSubPageCaches(
-                    smallCacheSize, directArena.numSmallSubpagePools, SizeClass.Small);
+                    smallCacheSize, directArena.numSmallSubpagePools, SizeClass.Small); //256
 
-            numShiftsNormalDirect = log2(directArena.pageSize);
-            normalDirectCaches = createNormalCaches(
-                    normalCacheSize, maxCachedBufferCapacity, directArena);
+            numShiftsNormalDirect = log2(directArena.pageSize); //8192, 取值为13   就是8k倍数时候，快速除以8k用的
+            normalDirectCaches = createNormalCaches(    //normal直接内存分配
+                    normalCacheSize, maxCachedBufferCapacity, directArena);  //64
 
-            directArena.numThreadCaches.getAndIncrement();
+            directArena.numThreadCaches.getAndIncrement(); //引用+1
         } else {
             // No directArea is configured so just null out all caches
             tinySubPageDirectCaches = null;
@@ -120,11 +120,11 @@ final class PoolThreadCache {
     }
 
     private static <T> MemoryRegionCache<T>[] createSubPageCaches(
-            int cacheSize, int numCaches, SizeClass sizeClass) {
+            int cacheSize, int numCaches, SizeClass sizeClass) { //512   16
         if (cacheSize > 0 && numCaches > 0) {
             @SuppressWarnings("unchecked")
             MemoryRegionCache<T>[] cache = new MemoryRegionCache[numCaches];
-            for (int i = 0; i < cache.length; i++) {
+            for (int i = 0; i < cache.length; i++) { //tiny small normal缓存格式都是大致定的，没有固定取值
                 // TODO: maybe use cacheSize / cache.length
                 cache[i] = new SubPageMemoryRegionCache<T>(cacheSize, sizeClass);
             }
@@ -137,11 +137,11 @@ final class PoolThreadCache {
     private static <T> MemoryRegionCache<T>[] createNormalCaches(
             int cacheSize, int maxCachedBufferCapacity, PoolArena<T> area) {
         if (cacheSize > 0 && maxCachedBufferCapacity > 0) {
-            int max = Math.min(area.chunkSize, maxCachedBufferCapacity);
-            int arraySize = Math.max(1, log2(max / area.pageSize) + 1);
+            int max = Math.min(area.chunkSize, maxCachedBufferCapacity);//默认32
+            int arraySize = Math.max(1, log2(max / area.pageSize) + 1);//normalHeapCaches 数组中的元素的大小，是以2的幂倍pageSize递增的
 
-            @SuppressWarnings("unchecked")
-            MemoryRegionCache<T>[] cache = new MemoryRegionCache[arraySize];
+            @SuppressWarnings("unchecked")   //只缓存8k，16k，32k的缓存，太大的话，内存扛不住，若最大缓存32m的话，缓存64*32M个，太大了，扛不住
+            MemoryRegionCache<T>[] cache = new MemoryRegionCache[arraySize];  //16M/8K + 1 = 每一层级都一个缓冲
             for (int i = 0; i < cache.length; i++) {
                 cache[i] = new NormalMemoryRegionCache<T>(cacheSize);
             }
@@ -151,7 +151,7 @@ final class PoolThreadCache {
         }
     }
 
-    private static int log2(int val) {
+    private static int log2(int val) { //看下是2的几次方
         int res = 0;
         while (val > 1) {
             val >>= 1;
@@ -183,7 +183,7 @@ final class PoolThreadCache {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private boolean allocate(MemoryRegionCache<?> cache, PooledByteBuf buf, int reqCapacity) {
-        if (cache == null) {
+        if (cache == null) { //得到该级别缓存的其实位置
             // no cache found so just return false here
             return false;
         }
@@ -206,7 +206,7 @@ final class PoolThreadCache {
         if (cache == null) {
             return false;
         }
-        return cache.add(chunk, nioBuffer, handle);
+        return cache.add(chunk, nioBuffer, handle);//告诉是哪个chunk和那个handler
     }
 
     private MemoryRegionCache<?> cache(PoolArena<?> area, int normCapacity, SizeClass sizeClass) {
@@ -306,7 +306,7 @@ final class PoolThreadCache {
     }
 
     private MemoryRegionCache<?> cacheForTiny(PoolArena<?> area, int normCapacity) {
-        int idx = PoolArena.tinyIdx(normCapacity);
+        int idx = PoolArena.tinyIdx(normCapacity); //这个是获取tiny的id
         if (area.isDirect()) {
             return cache(tinySubPageDirectCaches, idx);
         }
@@ -322,8 +322,8 @@ final class PoolThreadCache {
     }
 
     private MemoryRegionCache<?> cacheForNormal(PoolArena<?> area, int normCapacity) {
-        if (area.isDirect()) {
-            int idx = log2(normCapacity >> numShiftsNormalDirect);
+        if (area.isDirect()) { //是否是直接内存
+            int idx = log2(normCapacity >> numShiftsNormalDirect);  //8192 ，向右移动numShiftsNormalDirect，是为了快速除以8192采用的。因为mornal是page的倍数
             return cache(normalDirectCaches, idx);
         }
         int idx = log2(normCapacity >> numShiftsNormalHeap);
@@ -369,7 +369,7 @@ final class PoolThreadCache {
 
     private abstract static class MemoryRegionCache<T> {
         private final int size;
-        private final Queue<Entry<T>> queue;
+        private final Queue<Entry<T>> queue;  //只有在某个对象释放的时候，才会放入queue
         private final SizeClass sizeClass;
         private int allocations;
 
@@ -445,8 +445,8 @@ final class PoolThreadCache {
             allocations = 0;
 
             // We not even allocated all the number that are
-            if (free > 0) {
-                free(free, false);
+            if (free > 0) {//只有从该级别分配大于预定值，tiny：512，small:256 , normal:4次
+                free(free, false);//那么就不会释放该缓存
             }
         }
 

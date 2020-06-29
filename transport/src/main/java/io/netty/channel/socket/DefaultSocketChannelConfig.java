@@ -24,6 +24,7 @@ import io.netty.channel.RecvByteBufAllocator;
 import io.netty.channel.WriteBufferWaterMark;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.PlatformDependent;
+import sun.nio.ch.SocketAdaptor;
 
 import java.net.Socket;
 import java.net.SocketException;
@@ -37,7 +38,7 @@ import static io.netty.channel.ChannelOption.*;
 public class DefaultSocketChannelConfig extends DefaultChannelConfig
                                         implements SocketChannelConfig {
 
-    protected final Socket javaSocket;
+    protected final Socket javaSocket;//SocketAdaptor
     private volatile boolean allowHalfClosure;
 
     /**

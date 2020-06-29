@@ -258,7 +258,7 @@ public final class NetUtil {
                 // - Windows NT Server 4.0+: 200
                 // - Linux and Mac OS X: 128
                 int somaxconn = PlatformDependent.isWindows() ? 200 : 128;
-                File file = new File("/proc/sys/net/core/somaxconn");
+                File file = new File("/proc/sys/net/core/somaxconn"); //本mac没有这个文件，而线上环境是有这个文件，为65536
                 BufferedReader in = null;
                 try {
                     // file.exists() may throw a SecurityException if a SecurityManager is used, so execute it in the

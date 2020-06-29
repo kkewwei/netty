@@ -41,7 +41,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         return buf;
     }
 
-    private long memoryAddress;
+    private long memoryAddress;  //该PooledUnsafeDireceByteBuf真是直接内存地址+当前偏移量
 
     private PooledUnsafeDirectByteBuf(Handle<PooledUnsafeDirectByteBuf> recyclerHandle, int maxCapacity) {
         super(recyclerHandle, maxCapacity);
@@ -66,7 +66,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     protected ByteBuffer newInternalNioBuffer(ByteBuffer memory) {
-        return memory.duplicate();
+        return memory.duplicate(); //实现源和目的之间的相互影响，实际存储一样的，相当于引用
     }
 
     @Override
@@ -74,7 +74,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         return true;
     }
 
-    @Override
+    @Override   //根据直接内存地址获取相应地址值
     protected byte _getByte(int index) {
         return UnsafeByteBufUtil.getByte(addr(index));
     }

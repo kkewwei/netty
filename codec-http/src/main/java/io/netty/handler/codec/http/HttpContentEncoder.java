@@ -57,8 +57,8 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
 
     private enum State {
         PASS_THROUGH,
-        AWAIT_HEADERS,
-        AWAIT_CONTENT
+        AWAIT_HEADERS,   //await_headers
+        AWAIT_CONTENT    //await_content
     }
 
     private static final CharSequence ZERO_LENGTH_HEAD = "HEAD";
@@ -74,7 +74,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
         return msg instanceof HttpContent || msg instanceof HttpResponse;
     }
 
-    @Override
+    @Override//msg = AggregatedFullHttpRequest
     protected void decode(ChannelHandlerContext ctx, HttpRequest msg, List<Object> out) throws Exception {
         CharSequence acceptEncoding;
         List<String> acceptEncodingHeaders = msg.headers().getAll(ACCEPT_ENCODING);
@@ -98,13 +98,13 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
             acceptEncoding = ZERO_LENGTH_CONNECT;
         }
 
-        acceptEncodingQueue.add(acceptEncoding);
-        out.add(ReferenceCountUtil.retain(msg));
+        acceptEncodingQueue.add(acceptEncoding);//解码的时候放进去的
+        out.add(ReferenceCountUtil.retain(msg));//本意是说回来的时候的，这个msg还要用
     }
 
-    @Override
+    @Override    //msg: DefaultFullHttpResponse
     protected void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
-        final boolean isFull = msg instanceof HttpResponse && msg instanceof LastHttpContent;
+        final boolean isFull = msg instanceof HttpResponse && msg instanceof LastHttpContent;//HttpResponse里面仅仅存放
         switch (state) {
             case AWAIT_HEADERS: {
                 ensureHeaders(msg);
@@ -113,13 +113,13 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
                 final HttpResponse res = (HttpResponse) msg;
                 final int code = res.status().code();
                 final CharSequence acceptEncoding;
-                if (code == CONTINUE_CODE) {
+                if (code == CONTINUE_CODE) { //continue_code, continue response一般在之前， 不会执行到这里
                     // We need to not poll the encoding when response with CONTINUE as another response will follow
                     // for the issued request. See https://github.com/netty/netty/issues/4079
                     acceptEncoding = null;
                 } else {
                     // Get the list of encodings accepted by the peer.
-                    acceptEncoding = acceptEncodingQueue.poll();
+                    acceptEncoding = acceptEncodingQueue.poll(); //"gzip.default.br"
                     if (acceptEncoding == null) {
                         throw new IllegalStateException("cannot send more responses than requests");
                     }
@@ -138,7 +138,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
                  *
                  * See https://github.com/netty/netty/issues/5382
                  */
-                if (isPassthru(res.protocolVersion(), code, acceptEncoding)) {
+                if (isPassthru(res.protocolVersion(), code, acceptEncoding)) { //是否接下来是没有body的
                     if (isFull) {
                         out.add(ReferenceCountUtil.retain(res));
                     } else {
@@ -157,7 +157,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
                     }
                 }
 
-                // Prepare to encode the content.
+                // Prepare to encode the content.   通过curl 发送的请求中是没有压缩的，为identity
                 final Result result = beginEncode(res, acceptEncoding.toString());
 
                 // If unable to encode, pass through.
@@ -172,20 +172,20 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
                     break;
                 }
 
-                encoder = result.contentEncoder();
+                encoder = result.contentEncoder(); //encoder = EmbeddedChannel
 
                 // Encode the content and remove or replace the existing headers
                 // so that the message looks like a decoded message.
-                res.headers().set(HttpHeaderNames.CONTENT_ENCODING, result.targetContentEncoding());
+                res.headers().set(HttpHeaderNames.CONTENT_ENCODING, result.targetContentEncoding()); //gzip
 
                 // Output the rewritten response.
                 if (isFull) {
                     // Convert full message into unfull one.
                     HttpResponse newRes = new DefaultHttpResponse(res.protocolVersion(), res.status());
                     newRes.headers().set(res.headers());
-                    out.add(newRes);
+                    out.add(newRes);  //newRes里面还没有放数据
 
-                    ensureContent(res);
+                    ensureContent(res); //确保有caontent部分
                     encodeFullResponse(newRes, (HttpContent) res, out);
                     break;
                 } else {
@@ -221,7 +221,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
             }
         }
     }
-
+    //content = DefaultFullHttpResponse,   newRes = DefaultHttpResponse
     private void encodeFullResponse(HttpResponse newRes, HttpContent content, List<Object> out) {
         int existingMessages = out.size();
         encodeContent(content, out);
@@ -235,7 +235,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
                     messageSize += ((HttpContent) item).content().readableBytes();
                 }
             }
-            HttpUtil.setContentLength(newRes, messageSize);
+            HttpUtil.setContentLength(newRes, messageSize); //设置算返回值的长度content-length
         } else {
             newRes.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
         }
@@ -269,7 +269,7 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
         encode(content, out);
 
         if (c instanceof LastHttpContent) {
-            finishEncode(out);
+            finishEncode(out); //可以进去看下，还会产生一个footer, buf放的是压缩结束的事情
             LastHttpContent last = (LastHttpContent) c;
 
             // Generate an additional chunk if the decoder produced
@@ -333,28 +333,28 @@ public abstract class HttpContentEncoder extends MessageToMessageCodec<HttpReque
 
     private void encode(ByteBuf in, List<Object> out) {
         // call retain here as it will call release after its written to the channel
-        encoder.writeOutbound(in.retain());
+        encoder.writeOutbound(in.retain()); //encoder = EmbededdedChannel，实际会调用这里面定义的压缩类
         fetchEncoderOutput(out);
     }
 
     private void finishEncode(List<Object> out) {
-        if (encoder.finish()) {
-            fetchEncoderOutput(out);
+        if (encoder.finish()) { //进去可以看到还会产生一个footer handler
+            fetchEncoderOutput(out); //注意这里
         }
         encoder = null;
     }
 
     private void fetchEncoderOutput(List<Object> out) {
         for (;;) {
-            ByteBuf buf = encoder.readOutbound();
+            ByteBuf buf = encoder.readOutbound(); //将压缩之后的读取出来
             if (buf == null) {
                 break;
             }
-            if (!buf.isReadable()) {
+            if (!buf.isReadable()) { //若没有读取到数据，则直接抛继续读取
                 buf.release();
                 continue;
             }
-            out.add(new DefaultHttpContent(buf));
+            out.add(new DefaultHttpContent(buf)); //out中除了有DefaultHttpResponse, 还添加了内容部分
         }
     }
 

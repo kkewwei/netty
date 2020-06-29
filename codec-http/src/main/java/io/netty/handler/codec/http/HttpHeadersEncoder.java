@@ -36,7 +36,7 @@ final class HttpHeadersEncoder {
         final int entryLen = nameLen + valueLen + 4;
         buf.ensureWritable(entryLen);
         int offset = buf.writerIndex();
-        writeAscii(buf, offset, name);
+        writeAscii(buf, offset, name); // buf.setCharSequence(offset, value, CharsetUtil.US_ASCII);
         offset += nameLen;
         ByteBufUtil.setShortBE(buf, offset, COLON_AND_SPACE_SHORT);
         offset += 2;

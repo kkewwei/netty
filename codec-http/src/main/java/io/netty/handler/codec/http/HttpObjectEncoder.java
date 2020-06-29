@@ -80,8 +80,8 @@ public abstract class HttpObjectEncoder<H extends HttpMessage> extends MessageTo
 
     @Override
     protected void encode(ChannelHandlerContext ctx, Object msg, List<Object> out) throws Exception {
-        ByteBuf buf = null;
-        if (msg instanceof HttpMessage) {
+        ByteBuf buf = null; //临时变量
+        if (msg instanceof HttpMessage) {  //如果是头部，则先编码头部
             if (state != ST_INIT) {
                 throw new IllegalStateException("unexpected message type: " + StringUtil.simpleClassName(msg)
                         + ", state: " + state);
@@ -90,10 +90,10 @@ public abstract class HttpObjectEncoder<H extends HttpMessage> extends MessageTo
             @SuppressWarnings({ "unchecked", "CastConflictsWithInstanceof" })
             H m = (H) msg;
 
-            buf = ctx.alloc().buffer((int) headersEncodedSizeAccumulator);
+            buf = ctx.alloc().buffer((int) headersEncodedSizeAccumulator);//直接内存分配的地址
             // Encode the message.
-            encodeInitialLine(buf, m);
-            state = isContentAlwaysEmpty(m) ? ST_CONTENT_ALWAYS_EMPTY :
+            encodeInitialLine(buf, m); //先是编码initial部分
+            state = isContentAlwaysEmpty(m) ? ST_CONTENT_ALWAYS_EMPTY ://一般都是ST_CONTENT_NON_CHUNK
                     HttpUtil.isTransferEncodingChunked(m) ? ST_CONTENT_CHUNK : ST_CONTENT_NON_CHUNK;
 
             sanitizeHeadersBeforeEncode(m, state == ST_CONTENT_ALWAYS_EMPTY);
@@ -117,27 +117,27 @@ public abstract class HttpObjectEncoder<H extends HttpMessage> extends MessageTo
                 return;
             }
         }
-
+        //如果是数据部分，则编码数据部分， 若是DefaultFullHttpResponse
         if (msg instanceof HttpContent || msg instanceof ByteBuf || msg instanceof FileRegion) {
             switch (state) {
                 case ST_INIT:
                     throw new IllegalStateException("unexpected message type: " + StringUtil.simpleClassName(msg));
-                case ST_CONTENT_NON_CHUNK:
-                    final long contentLength = contentLength(msg);
-                    if (contentLength > 0) {
-                        if (buf != null && buf.writableBytes() >= contentLength && msg instanceof HttpContent) {
+                case ST_CONTENT_NON_CHUNK: //st_content_non_chunk
+                    final long contentLength = contentLength(msg); //若长度等于0， 可直接跳到ST_CONTENT_ALWAYS_EMPTY这里
+                    if (contentLength > 0) {//可写的空间够，直接放到直接内存buf中
+                        if (buf != null && buf.writableBytes() >= contentLength && msg instanceof HttpContent) {//必须是content类型的
                             // merge into other buffer for performance reasons
                             buf.writeBytes(((HttpContent) msg).content());
                             out.add(buf);
-                        } else {
+                        } else { //buf是临时变量，一般为null，都跑到这里了
                             if (buf != null) {
-                                out.add(buf);
+                                out.add(buf); //先把直接内存放进去
                             }
-                            out.add(encodeAndRetain(msg));
+                            out.add(encodeAndRetain(msg));//放进去的是CompositeByteBuf, 可以看出分了两部分放进去
                         }
 
                         if (msg instanceof LastHttpContent) {
-                            state = ST_INIT;
+                            state = ST_INIT; //编码完成后，直接复位
                         }
 
                         break;
@@ -173,7 +173,7 @@ public abstract class HttpObjectEncoder<H extends HttpMessage> extends MessageTo
                     throw new Error();
             }
 
-            if (msg instanceof LastHttpContent) {
+            if (msg instanceof LastHttpContent) { //解码完成，再置位
                 state = ST_INIT;
             }
         } else if (buf != null) {

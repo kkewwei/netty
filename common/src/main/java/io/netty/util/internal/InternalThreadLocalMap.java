@@ -293,7 +293,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
      * @return {@code true} if and only if a new thread-local variable has been created
      */
     public boolean setIndexedVariable(int index, Object value) {
-        Object[] lookup = indexedVariables;
+        Object[] lookup = indexedVariables; //若小就存放进去，若超了就扩容
         if (index < lookup.length) {
             Object oldValue = lookup[index];
             lookup[index] = value;

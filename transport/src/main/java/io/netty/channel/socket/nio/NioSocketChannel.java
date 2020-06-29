@@ -102,7 +102,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
      * @param socket    the {@link SocketChannel} which will be used
      */
     public NioSocketChannel(Channel parent, SocketChannel socket) {
-        super(parent, socket);
+        super(parent, socket); //socket=SocketChannelImpl,parent=NioServerSocketChannel
         config = new NioSocketChannelConfig(this, socket.socket());
     }
 
@@ -347,7 +347,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
     protected int doReadBytes(ByteBuf byteBuf) throws Exception {
         final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
         allocHandle.attemptedBytesRead(byteBuf.writableBytes());
-        return byteBuf.writeBytes(javaChannel(), allocHandle.attemptedBytesRead());
+        return byteBuf.writeBytes(javaChannel(), allocHandle.attemptedBytesRead()); //果然是直接
     }
 
     @Override
@@ -389,7 +389,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
             // Ensure the pending writes are made of ByteBufs only.
             int maxBytesPerGatheringWrite = ((NioSocketChannelConfig) config).getMaxBytesPerGatheringWrite();
-            ByteBuffer[] nioBuffers = in.nioBuffers(1024, maxBytesPerGatheringWrite);
+            ByteBuffer[] nioBuffers = in.nioBuffers(1024, maxBytesPerGatheringWrite); //获取的是DirectByteBuf[] 共三个
             int nioBufferCnt = in.nioBufferCount();
 
             // Always us nioBuffers() to workaround data-corruption.
