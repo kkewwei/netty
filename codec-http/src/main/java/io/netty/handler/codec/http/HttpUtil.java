@@ -260,7 +260,7 @@ public final class HttpUtil {
      * @return {@code true} if and only if an expectation is present that is not supported
      */
     static boolean isUnsupportedExpectation(HttpMessage message) {
-        if (!isExpectHeaderValid(message)) {
+        if (!isExpectHeaderValid(message)) { //只要version>=1.1就算是期望的
             return false;
         }
 
@@ -299,7 +299,7 @@ public final class HttpUtil {
      * @param message The message to check
      * @return True if transfer encoding is chunked, otherwise false
      */
-    public static boolean isTransferEncodingChunked(HttpMessage message) {
+    public static boolean isTransferEncodingChunked(HttpMessage message) { //是否包含key, value, 以防value不是chunked
         return message.headers().contains(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED, true);
     }
 
@@ -317,7 +317,7 @@ public final class HttpUtil {
             m.headers().remove(HttpHeaderNames.CONTENT_LENGTH);
         } else {
             List<String> encodings = m.headers().getAll(HttpHeaderNames.TRANSFER_ENCODING);
-            if (encodings.isEmpty()) {
+            if (encodings.isEmpty()) { //是否需要chunked
                 return;
             }
             List<CharSequence> values = new ArrayList<CharSequence>(encodings);
@@ -328,7 +328,7 @@ public final class HttpUtil {
                     valuesIt.remove();
                 }
             }
-            if (values.isEmpty()) {
+            if (values.isEmpty()) { //去掉transfor-encoding = "chunked"的那一项
                 m.headers().remove(HttpHeaderNames.TRANSFER_ENCODING);
             } else {
                 m.headers().set(HttpHeaderNames.TRANSFER_ENCODING, values);

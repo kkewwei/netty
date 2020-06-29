@@ -639,7 +639,7 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
             buf.writeByte(SP);
             buf.writeCharSequence(reasonPhrase, CharsetUtil.US_ASCII);
         } else {
-            buf.writeBytes(bytes);
+            buf.writeBytes(bytes); //50 48 48 32 79 79  "200 ok"
         }
     }
 }

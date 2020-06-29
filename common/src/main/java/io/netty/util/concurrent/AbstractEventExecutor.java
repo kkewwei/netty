@@ -37,7 +37,7 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
     static final long DEFAULT_SHUTDOWN_QUIET_PERIOD = 2;
     static final long DEFAULT_SHUTDOWN_TIMEOUT = 15;
 
-    private final EventExecutorGroup parent;
+    private final EventExecutorGroup parent;  //这个NioWEventLoop属于的
     private final Collection<EventExecutor> selfCollection = Collections.<EventExecutor>singleton(this);
 
     protected AbstractEventExecutor() {
@@ -59,7 +59,7 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
     }
 
     @Override
-    public boolean inEventLoop() {
+    public boolean inEventLoop() {//本线程是否是EventLoop里面的线程池启动的线程
         return inEventLoop(Thread.currentThread());
     }
 
@@ -161,7 +161,7 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
      */
     protected static void safeExecute(Runnable task) {
         try {
-            task.run();
+            task.run();//这里调用的是run, 而不是单个线程。
         } catch (Throwable t) {
             logger.warn("A task raised an exception. Task: {}", task, t);
         }

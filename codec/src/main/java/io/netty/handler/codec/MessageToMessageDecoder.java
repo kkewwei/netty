@@ -81,13 +81,13 @@ public abstract class MessageToMessageDecoder<I> extends ChannelInboundHandlerAd
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         CodecOutputList out = CodecOutputList.newInstance();
         try {
-            if (acceptInboundMessage(msg)) {
+            if (acceptInboundMessage(msg)) { //是否接受该InBoundMessage
                 @SuppressWarnings("unchecked")
-                I cast = (I) msg;
+                I cast = (I) msg;  //PooledSlicedByteBuf, DefaultHttpRequest
                 try {
                     decode(ctx, cast, out);
-                } finally {
-                    ReferenceCountUtil.release(cast);
+                } finally { //解码完后，就直接释放了
+                    ReferenceCountUtil.release(cast); //解码后，注意这里要释放，也就是引用-1， 就是把cast里面已经解析成string等， 若不是引用计数器，就射都不做
                 }
             } else {
                 out.add(msg);
@@ -97,6 +97,7 @@ public abstract class MessageToMessageDecoder<I> extends ChannelInboundHandlerAd
         } catch (Exception e) {
             throw new DecoderException(e);
         } finally {
+<<<<<<< HEAD
             try {
                 int size = out.size();
                 for (int i = 0; i < size; i++) {
@@ -104,6 +105,11 @@ public abstract class MessageToMessageDecoder<I> extends ChannelInboundHandlerAd
                 }
             } finally {
                 out.recycle();
+=======
+            int size = out.size();
+            for (int i = 0; i < size; i ++) {//针对每个帧单独发送出去。
+                ctx.fireChannelRead(out.getUnsafe(i));
+>>>>>>> 4e633c0d98... test
             }
         }
     }

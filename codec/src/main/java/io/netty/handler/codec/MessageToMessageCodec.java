@@ -64,7 +64,7 @@ public abstract class MessageToMessageCodec<INBOUND_IN, OUTBOUND_IN> extends Cha
         @Override
         @SuppressWarnings("unchecked")
         protected void encode(ChannelHandlerContext ctx, Object msg, List<Object> out) throws Exception {
-            MessageToMessageCodec.this.encode(ctx, (OUTBOUND_IN) msg, out);
+            MessageToMessageCodec.this.encode(ctx, (OUTBOUND_IN) msg, out); //OUTBOUND_IN = HttpObject
         }
     };
 

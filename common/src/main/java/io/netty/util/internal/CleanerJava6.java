@@ -32,8 +32,8 @@ import java.security.PrivilegedAction;
  * For more details see <a href="https://github.com/netty/netty/issues/2604">#2604</a>.
  */
 final class CleanerJava6 implements Cleaner {
-    private static final long CLEANER_FIELD_OFFSET;
-    private static final Method CLEAN_METHOD;
+    private static final long CLEANER_FIELD_OFFSET;//随便产生了一个DircetByteBuff，里面的cleaner的直接内存地址
+    private static final Method CLEAN_METHOD; //DircetByteBuff中cleaner的直接内存地址
     private static final Field CLEANER_FIELD;
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CleanerJava6.class);
@@ -94,8 +94,8 @@ final class CleanerJava6 implements Cleaner {
             logger.debug("java.nio.ByteBuffer.cleaner(): unavailable", error);
         }
         CLEANER_FIELD = cleanerField;
-        CLEANER_FIELD_OFFSET = fieldOffset;
-        CLEAN_METHOD = clean;
+        CLEANER_FIELD_OFFSET = fieldOffset;//DircetByteBuff中cleaner的直接内存地址
+        CLEAN_METHOD = clean; ////DircetByteBuff中cleaner的直接内存地址
     }
 
     static boolean isSupported() {
@@ -141,7 +141,7 @@ final class CleanerJava6 implements Cleaner {
         // sun.misc.Unsafe.
         if (CLEANER_FIELD_OFFSET == -1) {
             cleaner = CLEANER_FIELD.get(buffer);
-        } else {
+        } else {//获取传递进来的buffer的clean对象
             cleaner = PlatformDependent0.getObject(buffer, CLEANER_FIELD_OFFSET);
         }
         if (cleaner != null) {

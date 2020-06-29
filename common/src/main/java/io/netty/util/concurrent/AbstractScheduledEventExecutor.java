@@ -162,7 +162,7 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
      */
     protected final boolean hasScheduledTasks() {
         ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
-        return scheduledTask != null && scheduledTask.deadlineNanos() <= nanoTime();
+        return scheduledTask != null && scheduledTask.deadlineNanos() <= nanoTime(); //已经过了截止的相对时间
     }
 
     @Override

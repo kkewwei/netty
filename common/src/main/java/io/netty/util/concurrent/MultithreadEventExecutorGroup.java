@@ -30,11 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
-    private final EventExecutor[] children;
+    private final EventExecutor[] children; //NioEventLoop
     private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
     private final Promise<?> terminationFuture = new DefaultPromise(GlobalEventExecutor.INSTANCE);
-    private final EventExecutorChooserFactory.EventExecutorChooser chooser;
+    private final EventExecutorChooserFactory.EventExecutorChooser chooser;  //从children中选取一个eventLoop的策略
 
     /**
      * Create a new instance.
@@ -81,7 +81,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
-                children[i] = newChild(executor, args);
+                children[i] = newChild(executor, args);//executor=ThreadPerTaskExecutor里面是线程池的工厂
                 success = true;
             } catch (Exception e) {
                 // TODO: Think about if this is a good exception type
@@ -108,7 +108,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             }
         }
 
-        chooser = chooserFactory.newChooser(children);
+        chooser = chooserFactory.newChooser(children); //哪种选择EventLoop器，其实都是一种轮训，只是对于幂等运算，选取位运算，比较搞笑
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
             @Override

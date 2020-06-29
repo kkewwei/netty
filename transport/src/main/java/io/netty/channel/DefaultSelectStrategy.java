@@ -27,6 +27,6 @@ final class DefaultSelectStrategy implements SelectStrategy {
 
     @Override
     public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception {
-        return hasTasks ? selectSupplier.get() : SelectStrategy.SELECT;
-    }
+        return hasTasks ? selectSupplier.get() : SelectStrategy.SELECT; //若当前没有非IO类型task时，需要
+    }//若当前有I非O任务，那么就调用selectnow开始执行，主要是为了唤醒被select()阻塞的
 }

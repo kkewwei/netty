@@ -47,7 +47,7 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  * constructor explicitly.
  */
 public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements Iterable<ByteBuf> {
-
+   //这个CompositeByteBuf也是有write和read的
     private static final ByteBuffer EMPTY_NIO_BUFFER = Unpooled.EMPTY_BUFFER.nioBuffer();
     private static final Iterator<ByteBuf> EMPTY_ITERATOR = Collections.<ByteBuf>emptyList().iterator();
 
@@ -1860,15 +1860,15 @@ public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements
         return result + ", components=" + componentCount + ')';
     }
 
-    private static final class Component {
+    private static final class Component { //每个Component实际指向的是同一个数据源，offset和endOffset仅仅指向其中一段。
         final ByteBuf srcBuf; // the originally added buffer
         final ByteBuf buf; // srcBuf unwrapped zero or more times
 
         int srcAdjustment; // index of the start of this CompositeByteBuf relative to srcBuf
         int adjustment; // index of the start of this CompositeByteBuf relative to buf
 
-        int offset; // offset of this component within this CompositeByteBuf
-        int endOffset; // end offset of this component within this CompositeByteBuf
+        int offset; // offset of this component within this CompositeByteBuf//标记该Component 起始位置是从CompositeByte的整个帧上第几个字符
+        int endOffset; // end offset of this component within this CompositeByteBuf//标记该Component 结束位置是从CompositeByte的整个帧上第几个字符
 
         private ByteBuf slice; // cached slice, may be null
 

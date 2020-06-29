@@ -28,7 +28,7 @@ public interface SelectStrategy {
     /**
      * Indicates a blocking select should follow.
      */
-    int SELECT = -1;
+    int SELECT = -1; //应该是没有IO和非IO任务了，需要select
     /**
      * Indicates the IO loop should be retried, no blocking select to follow directly.
      */

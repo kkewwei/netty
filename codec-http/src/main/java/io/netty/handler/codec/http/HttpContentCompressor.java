@@ -147,7 +147,7 @@ public class HttpContentCompressor extends HttpContentEncoder {
             return null;
         }
 
-        ZlibWrapper wrapper = determineWrapper(acceptEncoding);
+        ZlibWrapper wrapper = determineWrapper(acceptEncoding);//GZIP
         if (wrapper == null) {
             return null;
         }
@@ -172,8 +172,8 @@ public class HttpContentCompressor extends HttpContentEncoder {
     }
 
     @SuppressWarnings("FloatingPointEquality")
-    protected ZlibWrapper determineWrapper(String acceptEncoding) {
-        float starQ = -1.0f;
+    protected ZlibWrapper determineWrapper(String acceptEncoding) { //根据可用的压缩器，选用哪个，默认gzip, deflate, br，选择用gzip
+        float starQ = -1.0f;  //这三个参数判断gzip,deflat,br是否存在
         float gzipQ = -1.0f;
         float deflateQ = -1.0f;
         for (String encoding : acceptEncoding.split(",")) {
@@ -195,14 +195,14 @@ public class HttpContentCompressor extends HttpContentEncoder {
                 deflateQ = q;
             }
         }
-        if (gzipQ > 0.0f || deflateQ > 0.0f) {
-            if (gzipQ >= deflateQ) {
+        if (gzipQ > 0.0f || deflateQ > 0.0f) {  //gzip deflate至少存在一个
+            if (gzipQ >= deflateQ) { //gzip优先级高于deflate
                 return ZlibWrapper.GZIP;
             } else {
                 return ZlibWrapper.ZLIB;
             }
         }
-        if (starQ > 0.0f) {
+        if (starQ > 0.0f) {//gzip deflate一个都不存在，编码器为*，任何编码方式都支持，默认有限选择gzip
             if (gzipQ == -1.0f) {
                 return ZlibWrapper.GZIP;
             }

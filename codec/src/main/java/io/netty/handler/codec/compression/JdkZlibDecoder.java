@@ -44,7 +44,7 @@ public class JdkZlibDecoder extends ZlibDecoder {
     private final boolean decompressConcatenated;
 
     private enum GzipState {
-        HEADER_START,
+        HEADER_START, //最开始，初始值
         HEADER_END,
         FLG_READ,
         XLEN_READ,
@@ -303,11 +303,11 @@ public class JdkZlibDecoder extends ZlibDecoder {
     private boolean readGZIPHeader(ByteBuf in) {
         switch (gzipState) {
             case HEADER_START:
-                if (in.readableBytes() < 10) {
+                if (in.readableBytes() < 10) {  //小于10，基本不用解析
                     return false;
                 }
                 // read magic numbers
-                int magic0 = in.readByte();
+                int magic0 = in.readByte();  //读取编码时候的魔数，不为31，即不为gzip编码数据
                 int magic1 = in.readByte();
 
                 if (magic0 != 31) {

@@ -26,7 +26,7 @@ import io.netty.util.internal.ReferenceCountUpdater;
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     private static final long REFCNT_FIELD_OFFSET =
             ReferenceCountUpdater.getUnsafeOffset(AbstractReferenceCountedByteBuf.class, "refCnt");
-    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> AIF_UPDATER =
+    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> AIF_UPDATER =///其实很简单，他让tclass的成员fieldName具有了原子性，是不是很简单～
             AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
 
     private static final ReferenceCountUpdater<AbstractReferenceCountedByteBuf> updater =
@@ -48,7 +48,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     protected AbstractReferenceCountedByteBuf(int maxCapacity) {
         super(maxCapacity);
     }
-
+    //
     @Override
     boolean isAccessible() {
         // Try to do non-volatile read for performance as the ensureAccessible() is racy anyway and only provide
@@ -74,7 +74,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     protected final void resetRefCnt() {
         updater.resetRefCnt(this);
     }
-
+   //每调用一次retain方法，计数器加一
     @Override
     public ByteBuf retain() {
         return updater.retain(this);
