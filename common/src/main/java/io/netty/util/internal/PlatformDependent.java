@@ -72,7 +72,7 @@ public final class PlatformDependent {
 
     private static final boolean CAN_ENABLE_TCP_NODELAY_BY_DEFAULT = !isAndroid();
 
-    private static final boolean HAS_UNSAFE = hasUnsafe0();
+    private static final boolean HAS_UNSAFE = hasUnsafe0(); //是否有Unsafe
     private static final boolean DIRECT_BUFFER_PREFERRED =
             HAS_UNSAFE && !SystemPropertyUtil.getBoolean("io.netty.noPreferDirect", false);
     private static final long MAX_DIRECT_MEMORY = maxDirectMemory0();
@@ -82,18 +82,18 @@ public final class PlatformDependent {
     private static final int DEFAULT_MAX_MPSC_CAPACITY =  MPSC_CHUNK_SIZE * MPSC_CHUNK_SIZE;
     private static final int MAX_ALLOWED_MPSC_CAPACITY = Pow2.MAX_POW2;
 
-    private static final long BYTE_ARRAY_BASE_OFFSET = byteArrayBaseOffset0();
+    private static final long BYTE_ARRAY_BASE_OFFSET = byteArrayBaseOffset0(); //与unsafe结合可以获取array的直接地址
 
     private static final File TMPDIR = tmpdir0();
 
-    private static final int BIT_MODE = bitMode0();
+    private static final int BIT_MODE = bitMode0(); //获取操作系统的位数
 
     private static final int ADDRESS_SIZE = addressSize0();
-    private static final boolean USE_DIRECT_BUFFER_NO_CLEANER;
+    private static final boolean USE_DIRECT_BUFFER_NO_CLEANER;  //默认为true，则代表着netty将自己实现直接内存的回收与利用，以减少新建直接内存的开销
     private static final AtomicLong DIRECT_MEMORY_COUNTER;
     private static final long DIRECT_MEMORY_LIMIT;
     private static final ThreadLocalRandomProvider RANDOM_PROVIDER;
-    private static final Cleaner CLEANER;
+    private static final Cleaner CLEANER;  //自己弄一个cleaner, 底层还是DirectByteBuff里面的cleaner
     private static final int UNINITIALIZED_ARRAY_ALLOCATION_THRESHOLD;
 
     public static final boolean BIG_ENDIAN_NATIVE_ORDER = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN;
@@ -144,7 +144,7 @@ public final class PlatformDependent {
         // * >  0  - Don't use cleaner. This will limit Netty's total direct memory
         //           (note: that JDK's direct memory limit is independent of this).
         long maxDirectMemory = SystemPropertyUtil.getLong("io.netty.maxDirectMemory", -1);
-
+        //PlatformDependent0.hasDirectBufferNoCleanerConstructor():是否可以有DirectByteBuffer来构建直接内存
         if (maxDirectMemory == 0 || !hasUnsafe() || !PlatformDependent0.hasDirectBufferNoCleanerConstructor()) {
             USE_DIRECT_BUFFER_NO_CLEANER = false;
             DIRECT_MEMORY_COUNTER = null;
@@ -364,7 +364,7 @@ public final class PlatformDependent {
     }
 
     public static long directBufferAddress(ByteBuffer buffer) {
-        return PlatformDependent0.directBufferAddress(buffer);
+        return PlatformDependent0.directBufferAddress(buffer); //获取直接内存起始地址   buffer=DirectByteBuffer
     }
 
     public static ByteBuffer directBuffer(long memoryAddress, int size) {
@@ -568,7 +568,7 @@ public final class PlatformDependent {
 
         incrementMemoryCounter(capacity);
         try {
-            return PlatformDependent0.allocateDirectNoCleaner(capacity);
+            return PlatformDependent0.allocateDirectNoCleaner(capacity); //开始产生DirectByteBuffer, 大小为16M
         } catch (Throwable e) {
             decrementMemoryCounter(capacity);
             throwException(e);
@@ -630,7 +630,7 @@ public final class PlatformDependent {
     }
 
     public static boolean useDirectBufferNoCleaner() {
-        return USE_DIRECT_BUFFER_NO_CLEANER;
+        return USE_DIRECT_BUFFER_NO_CLEANER; //默认为true
     }
 
     /**
@@ -933,7 +933,7 @@ public final class PlatformDependent {
             return false;
         }
 
-        if (PlatformDependent0.isExplicitNoUnsafe()) {
+        if (PlatformDependent0.isExplicitNoUnsafe()) { //是否明确不让使用Unsafe
             return false;
         }
 
@@ -1088,7 +1088,7 @@ public final class PlatformDependent {
             return f;
         }
     }
-
+    //获取操作系统是32位的还是64位的
     private static int bitMode0() {
         // Check user-specified bit mode first.
         int bitMode = SystemPropertyUtil.getInt("io.netty.bitMode", 0);

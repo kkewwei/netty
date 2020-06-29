@@ -26,7 +26,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositive;
  * Abstract base class for {@link ByteBuf} implementations that count references.
  */
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
-
+    //其实很简单，他让tclass的成员fieldName具有了原子性，是不是很简单～
     private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater =
             AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
 
@@ -35,7 +35,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     protected AbstractReferenceCountedByteBuf(int maxCapacity) {
         super(maxCapacity);
     }
-
+    //
     @Override
     public int refCnt() {
         return refCnt;
@@ -47,7 +47,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     protected final void setRefCnt(int refCnt) {
         this.refCnt = refCnt;
     }
-
+   //每调用一次retain方法，计数器加一
     @Override
     public ByteBuf retain() {
         return retain0(1);
@@ -66,7 +66,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
             // Ensure we not resurrect (which means the refCnt was 0) and also that we encountered an overflow.
             if (nextCnt <= increment) {
                 throw new IllegalReferenceCountException(refCnt, increment);
-            }
+            }//如果修改失败，则继续自旋，下一次再修改
             if (refCntUpdater.compareAndSet(this, refCnt, nextCnt)) {
                 break;
             }
@@ -102,8 +102,8 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
             }
 
             if (refCntUpdater.compareAndSet(this, refCnt, refCnt - decrement)) {
-                if (refCnt == decrement) {
-                    deallocate();
+                if (refCnt == decrement) {//如果相等，则refCnt=0，则可以直接释放资源
+                    deallocate(); //释放的时候就放进去了
                     return true;
                 }
                 return false;

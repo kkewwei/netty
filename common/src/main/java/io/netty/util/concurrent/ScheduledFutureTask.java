@@ -27,7 +27,7 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
     private static final AtomicLong nextTaskId = new AtomicLong();
     private static final long START_TIME = System.nanoTime();
 
-    static long nanoTime() {
+    static long nanoTime() { //当前时间，使用的是相对时间，可以理解等价于System.nanoTime()
         return System.nanoTime() - START_TIME;
     }
 
@@ -36,7 +36,7 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
     }
 
     private final long id = nextTaskId.getAndIncrement();
-    private long deadlineNanos;
+    private long deadlineNanos; //截止的相对时间
     /* 0 - no repeat, >0 - repeat at fixed rate, <0 - repeat with fixed delay */
     private final long periodNanos;
 
@@ -82,7 +82,7 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
     }
 
     public long delayNanos(long currentTimeNanos) {
-        return Math.max(0, deadlineNanos() - (currentTimeNanos - START_TIME));
+        return Math.max(0, deadlineNanos() - (currentTimeNanos - START_TIME)); //task到截止执行的相对时间
     }
 
     @Override

@@ -47,9 +47,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new LinkedHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
-    private volatile EventLoopGroup childGroup;
-    private volatile ChannelHandler childHandler;
-
+    private volatile EventLoopGroup childGroup; //是处理WorkGroup的
+    private volatile ChannelHandler childHandler;  //一般都是在该类内部实现 ChannelInitializer（自定义各种用handler工厂）
+  //外面那个b.childHandler(new ChannelInitializer<SocketChannel>() {
     public ServerBootstrap() { }
 
     private ServerBootstrap(ServerBootstrap bootstrap) {
@@ -138,7 +138,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     @Override
-    void init(Channel channel) throws Exception {
+    void init(Channel channel) throws Exception {//NioServerSocketChannal
         final Map<ChannelOption<?>, Object> options = options0();
         synchronized (options) {
             setChannelOptions(channel, options, logger);
@@ -153,7 +153,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
         }
 
-        ChannelPipeline p = channel.pipeline();
+        ChannelPipeline p = channel.pipeline(); //DefaultChannalPipeLine
 
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
@@ -165,34 +165,34 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         synchronized (childAttrs) {
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(childAttrs.size()));
         }
-
-        p.addLast(new ChannelInitializer<Channel>() {
+        //DefaultChannelPipeLine
+        p.addLast(new ChannelInitializer<Channel>() { //新建的ChannelInitializer.initChannel
             @Override
-            public void initChannel(final Channel ch) throws Exception {
+            public void initChannel(final Channel ch) throws Exception {//NioServerSocketChannel
                 final ChannelPipeline pipeline = ch.pipeline();
-                ChannelHandler handler = config.handler();
+                ChannelHandler handler = config.handler();//默认handler为空的
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
 
-                ch.eventLoop().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        pipeline.addLast(new ServerBootstrapAcceptor(
+                ch.eventLoop().execute(new Runnable() {//ChannelInitializer和ServerBootstrapAcceptor都是Inbound,区别就是
+                    @Override//ChannelInitializer复用了handlerAdded()函数，使得可以调用initChannel()，而另个不能
+                    public void run() { //// 这里的ServerBootstrapAcceptor比较重要先记住
+                        pipeline.addLast(new ServerBootstrapAcceptor(//仅仅放进去，啥事都没做
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
-                    }
+                    }//会跑到DefaultChannelPipeline.addLast() , currentChildHandler = HelloServerInitializer
                 });
             }
-        });
+        }); //这里虽然添加了两次，但是ChannelInboundHandler.initChannel(ChannelHandlerContext)中，有个remove(ctx)操作，会将第一个addLast()删掉，对链操作是互斥的
     }
-
+    //若用户没有设置workGroup，就使boss的和work的公用
     @Override
     public ServerBootstrap validate() {
         super.validate();
         if (childHandler == null) {
             throw new IllegalStateException("childHandler not set");
         }
-        if (childGroup == null) {
+        if (childGroup == null) { //若用户没有设置workGroup，就使boss的和work的公用
             logger.warn("childGroup is not set. Using parentGroup instead.");
             childGroup = config.group();
         }
@@ -204,7 +204,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return new Entry[size];
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // ServerBootstrapAcceptor类主要作用是接收到客户端连接后，使用childOptions和childAttrs对连接初始化，然后将连接注册到childGroup中
     private static Map.Entry<ChannelOption<?>, Object>[] newOptionArray(int size) {
         return new Map.Entry[size];
     }
@@ -212,7 +212,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
         private final EventLoopGroup childGroup;
-        private final ChannelHandler childHandler;
+        private final ChannelHandler childHandler;  //
         private final Entry<ChannelOption<?>, Object>[] childOptions;
         private final Entry<AttributeKey<?>, Object>[] childAttrs;
         private final Runnable enableAutoReadTask;
@@ -241,9 +241,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
-            final Channel child = (Channel) msg;
-
-            child.pipeline().addLast(childHandler);
+            final Channel child = (Channel) msg; //// child是对socket的一个包装、增强   //NioSocketChannel
+            //// 引导类启动时设置的childHandler加到child的pipeline中
+            child.pipeline().addLast(childHandler); //b.childHandler(new ChannelInitializer<SocketChannel>() {
 
             setChannelOptions(child, childOptions, logger);
 
@@ -251,11 +251,11 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 child.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
             }
 
-            try {
-                childGroup.register(child).addListener(new ChannelFutureListener() {
+            try {  // 将连接注册到childGroup中（也就是我们常说的workGroup)，注册完成如果发现注册失败则关闭此链接
+                childGroup.register(child).addListener(new ChannelFutureListener() {   ///这里使用的是childGroup
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
-                        if (!future.isSuccess()) {
+                        if (!future.isSuccess()) { //如果有连接完成，但是失败的情况下
                             forceClose(child, future.cause());
                         }
                     }
@@ -266,7 +266,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         }
 
         private static void forceClose(Channel child, Throwable t) {
-            child.unsafe().closeForcibly();
+            child.unsafe().closeForcibly(); //NioMessageUnsafe.closeForcibly()
             logger.warn("Failed to register an accepted channel: {}", child, t);
         }
 
@@ -276,7 +276,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             if (config.isAutoRead()) {
                 // stop accept new connections for 1 second to allow the channel to recover
                 // See https://github.com/netty/netty/issues/1328
-                config.setAutoRead(false);
+                config.setAutoRead(false);  // // 先设置为false，不再接收连接
                 ctx.channel().eventLoop().schedule(enableAutoReadTask, 1, TimeUnit.SECONDS);
             }
             // still let the exceptionCaught event flow through the pipeline to give the user

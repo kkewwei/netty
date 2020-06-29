@@ -53,12 +53,12 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     protected final Channel channel;
 
-    private volatile ByteBufAllocator allocator = ByteBufAllocator.DEFAULT;
+    private volatile ByteBufAllocator allocator = ByteBufAllocator.DEFAULT; //默认所有channel公用一个allocator
     private volatile RecvByteBufAllocator rcvBufAllocator;
     private volatile MessageSizeEstimator msgSizeEstimator = DEFAULT_MSG_SIZE_ESTIMATOR;
 
     private volatile int connectTimeoutMillis = DEFAULT_CONNECT_TIMEOUT;
-    private volatile int writeSpinCount = 16;
+    private volatile int writeSpinCount = 16; //最多一次处理16个
     @SuppressWarnings("FieldMayBeFinal")
     private volatile int autoRead = 1;
     private volatile boolean autoClose = true;
@@ -271,7 +271,7 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     @Override
     public ByteBufAllocator getAllocator() {
-        return allocator;
+        return allocator; //PoolByteBufAllocator   direct
     }
 
     @Override

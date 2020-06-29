@@ -49,7 +49,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @param <C>   A sub-type of {@link Channel}
  */
-@Sharable
+@Sharable  //也是一个ChannelInboundHandler
 public abstract class ChannelInitializer<C extends Channel> extends ChannelInboundHandlerAdapter {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ChannelInitializer.class);
@@ -66,17 +66,17 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
      *                      {@link #exceptionCaught(ChannelHandlerContext, Throwable)} which will by default close
      *                      the {@link Channel}.
      */
-    protected abstract void initChannel(C ch) throws Exception;
+    protected abstract void initChannel(C ch) throws Exception;  //实际会在channelRegistered()中调用
 
     @Override
     @SuppressWarnings("unchecked")
     public final void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         // Normally this method will never be called as handlerAdded(...) should call initChannel(...) and remove
         // the handler.
-        if (initChannel(ctx)) {
+        if (initChannel(ctx)) {  //// initChannel主要是初始化channel对应的pipeline
             // we called initChannel(...) so we need to call now pipeline.fireChannelRegistered() to ensure we not
             // miss an event.
-            ctx.pipeline().fireChannelRegistered();
+            ctx.pipeline().fireChannelRegistered();  // // channelRegistered属于inbound事件，注册后调用一次该方法，这样所有用户添加的handler可以感知到此事件
         } else {
             // Called initChannel(...) before which is the expected behavior, so just forward the event.
             ctx.fireChannelRegistered();
@@ -102,7 +102,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
             // The good thing about calling initChannel(...) in handlerAdded(...) is that there will be no ordering
             // surprises if a ChannelInitializer will add another ChannelInitializer. This is as all handlers
             // will be added in the expected order.
-            initChannel(ctx);
+            initChannel(ctx); //这里定义了handerAdder
         }
     }
 
@@ -116,7 +116,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
                 // We do so to prevent multiple calls to initChannel(...).
                 exceptionCaught(ctx, cause);
             } finally {
-                remove(ctx);
+                remove(ctx); //初始化完善后，删除自身。又要把最开始注册的HelloServerInitializer删掉，也是ChannelInboundHandler类型
             }
             return true;
         }

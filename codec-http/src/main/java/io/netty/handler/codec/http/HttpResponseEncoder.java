@@ -35,6 +35,6 @@ public class HttpResponseEncoder extends HttpObjectEncoder<HttpResponse> {
         response.protocolVersion().encode(buf);
         buf.writeByte(SP);
         response.status().encode(buf);
-        buf.writeBytes(CRLF);
+        buf.writeBytes(CRLF); //  回车 //换行
     }
 }

@@ -104,7 +104,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
                 I cast = (I) msg;
                 buf = allocateBuffer(ctx, cast, preferDirect);
                 try {
-                    encode(ctx, cast, buf);
+                    encode(ctx, cast, buf); //压缩完成了之后，buf存放的都是压缩之后的数据，cast存放的是压缩前的数据
                 } finally {
                     ReferenceCountUtil.release(cast);
                 }

@@ -840,7 +840,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf readRetainedSlice(int length) {
-        ByteBuf slice = retainedSlice(readerIndex, length);
+        ByteBuf slice = retainedSlice(readerIndex, length);//slice = PooledSlicedByteBuf,跑到PooledByteBuf里面了，公用一个底层
         readerIndex += length;
         return slice;
     }
@@ -1259,7 +1259,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
             return -1;
         }
     }
-
+     //start->end遍历，知道返回false暂停，这里暂停的条件是用户自定定义的。
     private int forEachByteAsc0(int start, int end, ByteProcessor processor) throws Exception {
         for (; start < end; ++start) {
             if (!processor.process(_getByte(start))) {

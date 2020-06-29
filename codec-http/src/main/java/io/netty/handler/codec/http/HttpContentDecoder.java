@@ -45,13 +45,13 @@ import java.util.List;
  */
 public abstract class HttpContentDecoder extends MessageToMessageDecoder<HttpObject> {
 
-    static final String IDENTITY = HttpHeaderValues.IDENTITY.toString();
+    static final String IDENTITY = HttpHeaderValues.IDENTITY.toString();  //没有编解码
 
     protected ChannelHandlerContext ctx;
     private EmbeddedChannel decoder;
-    private boolean continueResponse;
+    private boolean continueResponse;  //是否还需要继续发送response，可能response太长了
 
-    @Override
+    @Override   //定义了解码方式
     protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
         if (msg instanceof HttpResponse && ((HttpResponse) msg).status().code() == 100) {
 
@@ -71,8 +71,8 @@ public abstract class HttpContentDecoder extends MessageToMessageDecoder<HttpObj
             out.add(ReferenceCountUtil.retain(msg));
             return;
         }
-
-        if (msg instanceof HttpMessage) {
+         //第一次请求
+        if (msg instanceof HttpMessage) {//message可能为DefaultHttpRequest； 要是最后一个content，为DefaultLastHttpContent，将直接跳过这里
             cleanup();
             final HttpMessage message = (HttpMessage) msg;
             final HttpHeaders headers = message.headers();
@@ -82,40 +82,40 @@ public abstract class HttpContentDecoder extends MessageToMessageDecoder<HttpObj
             if (contentEncoding != null) {
                 contentEncoding = contentEncoding.trim();
             } else {
-                contentEncoding = IDENTITY;
+                contentEncoding = IDENTITY; //默认identity类型压缩
             }
-            decoder = newContentDecoder(contentEncoding);
+            decoder = newContentDecoder(contentEncoding);//会跑到HttpContentDecompressor里面去, 获得一个handler的管道，
 
-            if (decoder == null) {
-                if (message instanceof HttpContent) {
+            if (decoder == null) {  //要是identity， 则decoder为null
+                if (message instanceof HttpContent) {   //这里也很少见
                     ((HttpContent) message).retain();
                 }
-                out.add(message);
+                out.add(message); //message = DefaultHttpRequest
                 return;
             }
-
+            //说明解码器不为空，是由压缩的，需要把CONTENT_LENGTH给去掉，只有当所有的chunked解码后才知道具体的长度
             // Remove content-length header:
             // the correct value can be set only after all chunks are processed/decoded.
             // If buffering is not an issue, add HttpObjectAggregator down the chain, it will set the header.
             // Otherwise, rely on LastHttpContent message.
-            if (headers.contains(HttpHeaderNames.CONTENT_LENGTH)) {
+            if (headers.contains(HttpHeaderNames.CONTENT_LENGTH)) {  //将Content-Length参数去掉
                 headers.remove(HttpHeaderNames.CONTENT_LENGTH);
-                headers.set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+                headers.set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED); //设置transfer-encoding为chunked
             }
             // Either it is already chunked or EOF terminated.
             // See https://github.com/netty/netty/issues/5892
 
             // set new content encoding,
-            CharSequence targetContentEncoding = getTargetContentEncoding(contentEncoding);
+            CharSequence targetContentEncoding = getTargetContentEncoding(contentEncoding); //就是string， 默认返回值identity
             if (HttpHeaderValues.IDENTITY.contentEquals(targetContentEncoding)) {
                 // Do NOT set the 'Content-Encoding' header if the target encoding is 'identity'
-                // as per: http://tools.ietf.org/html/rfc2616#section-14.11
-                headers.remove(HttpHeaderNames.CONTENT_ENCODING);
+                // as per: http://tools.ietf.org/html/rfc2616#section-14.11  //若果目标编码默认是IDENTITY ，那么content-encoding就无效
+                headers.remove(HttpHeaderNames.CONTENT_ENCODING); //将content-encoding参数去掉
             } else {
-                headers.set(HttpHeaderNames.CONTENT_ENCODING, targetContentEncoding);
+                headers.set(HttpHeaderNames.CONTENT_ENCODING, targetContentEncoding);//content-encoding设置为"identity"
             }
 
-            if (message instanceof HttpContent) {
+            if (message instanceof HttpContent) { //有时HttpRequest，又是HttpContent，不基本很少见
                 // If message is a full request or response object (headers + data), don't copy data part into out.
                 // Output headers only; data part will be decoded below.
                 // Note: "copy" object must not be an instance of LastHttpContent class,
@@ -134,17 +134,17 @@ public abstract class HttpContentDecoder extends MessageToMessageDecoder<HttpObj
                 copy.headers().set(message.headers());
                 copy.setDecoderResult(message.decoderResult());
                 out.add(copy);
-            } else {
+            } else {  //基本都会跑这里， 毕竟HttpMessage
                 out.add(message);
             }
         }
 
-        if (msg instanceof HttpContent) {
+        if (msg instanceof HttpContent) { //msg = DefaultLastHttpContent
             final HttpContent c = (HttpContent) msg;
-            if (decoder == null) {
-                out.add(c.retain());
+            if (decoder == null) { //若没有定义content-encoding， decoder就不会有值， decoder = EmbededChannel
+                out.add(c.retain()); //refC+1 ， 加1后，就不会释放了
             } else {
-                decodeContent(c, out);
+                decodeContent(c, out); //就是下面这个函数
             }
         }
     }
@@ -152,7 +152,7 @@ public abstract class HttpContentDecoder extends MessageToMessageDecoder<HttpObj
     private void decodeContent(HttpContent c, List<Object> out) {
         ByteBuf content = c.content();
 
-        decode(content, out);
+        decode(content, out);  //实现是本类中的decode
 
         if (c instanceof LastHttpContent) {
             finishDecode(out);

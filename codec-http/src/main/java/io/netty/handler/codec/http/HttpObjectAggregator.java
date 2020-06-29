@@ -131,7 +131,7 @@ public class HttpObjectAggregator
 
     @Override
     protected boolean isStartMessage(HttpObject msg) throws Exception {
-        return msg instanceof HttpMessage;
+        return msg instanceof HttpMessage; //第一次时是DefaultHttpRequest
     }
 
     @Override
@@ -160,14 +160,14 @@ public class HttpObjectAggregator
 
     @Override
     protected Object newContinueResponse(HttpMessage start, int maxContentLength, ChannelPipeline pipeline) {
-        if (HttpUtil.isUnsupportedExpectation(start)) {
+        if (HttpUtil.isUnsupportedExpectation(start)) { //不支持的头指的是version低于
             // if the request contains an unsupported expectation, we return 417
             pipeline.fireUserEventTriggered(HttpExpectationFailedEvent.INSTANCE);
             return EXPECTATION_FAILED.retainedDuplicate();
         } else if (HttpUtil.is100ContinueExpected(start)) {
             // if the request contains 100-continue but the content-length is too large, we return 413
             if (getContentLength(start, -1L) <= maxContentLength) {
-                return CONTINUE.retainedDuplicate();
+                return CONTINUE.retainedDuplicate(); //返回的是DefaultFullHttpResponse
             }
             pipeline.fireUserEventTriggered(HttpExpectationFailedEvent.INSTANCE);
             return TOO_LARGE.retainedDuplicate();
@@ -190,7 +190,7 @@ public class HttpObjectAggregator
         return false;
     }
 
-    @Override
+    @Override   //content = CompositeByteBuf, start = DefaultHttpRequest
     protected FullHttpMessage beginAggregation(HttpMessage start, ByteBuf content) throws Exception {
         assert !(start instanceof FullHttpMessage);
 

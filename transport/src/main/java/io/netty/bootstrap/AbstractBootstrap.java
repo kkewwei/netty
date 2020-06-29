@@ -49,7 +49,7 @@ import java.util.Map;
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
-    volatile EventLoopGroup group;
+    volatile EventLoopGroup group; //是Parent，若workGroup没有，就公用，若有，就是用childGroup
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
     private volatile SocketAddress localAddress;
@@ -80,7 +80,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      */
     @SuppressWarnings("unchecked")
     public B group(EventLoopGroup group) {
-        if (group == null) {
+        if (group == null) { //
             throw new NullPointerException("group");
         }
         if (this.group != null) {
@@ -279,19 +279,19 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(localAddress);
     }
 
-    private ChannelFuture doBind(final SocketAddress localAddress) {
+    private ChannelFuture doBind(final SocketAddress localAddress) {//bind就是与本地ip:port绑定
         final ChannelFuture regFuture = initAndRegister();
-        final Channel channel = regFuture.channel();
-        if (regFuture.cause() != null) {
+        final Channel channel = regFuture.channel(); //NioServerSocketChannel
+        if (regFuture.cause() != null) { //如果监听出错，直接返回
             return regFuture;
         }
 
-        if (regFuture.isDone()) {
+        if (regFuture.isDone()) {// 注册完成调用doBind0，
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
-        } else {
+        } else {//否则添加一个注册事件的监听器，该监听器在监听到注册完成后也会触发doBind0操作
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
@@ -305,7 +305,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                     } else {
                         // Registration was successful, so set the correct executor to use.
                         // See https://github.com/netty/netty/issues/2586
-                        promise.registered();
+                        promise.registered();   //成功后，这个channel设置注册完成
 
                         doBind0(regFuture, channel, localAddress, promise);
                     }
@@ -317,9 +317,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     final ChannelFuture initAndRegister() {
         Channel channel = null;
-        try {
-            channel = channelFactory.newChannel();
-            init(channel);
+        try { //经过检查，只有这个地方会产生NioServerSocketChannel,默认监听OP_ACCEPT
+            channel = channelFactory.newChannel();   //进行channal的生成，仅仅生成 NioServerSocketChannel，并没有具体绑定，生成NioServerSocketChannal的同时，也会会定义DefaultChannelPipeline
+            init(channel); //会跑到 ServerBootstrap.init(),向pipe添加ServerBootstrapAcceptor
         } catch (Throwable t) {
             if (channel != null) {
                 // channel can be null if newChannel crashed (eg SocketException("too many open files"))
@@ -328,8 +328,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
-        ChannelFuture regFuture = config().group().register(channel);
+        //将NioServerSocketChannel注册到bossGroup，此时bossGroup被激活开始接收任务及IO事件。就是给NioServerSocketChannel分配一个EventLoop
+        ChannelFuture regFuture = config().group().register(channel); //将channal注册到一个NioEventLoop 的Selector上
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
                 channel.close();
@@ -361,7 +361,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
-                if (regFuture.isSuccess()) {
+                if (regFuture.isSuccess()) { //NioServerSocketChannel
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
                 } else {
                     promise.setFailure(regFuture.cause());
@@ -389,7 +389,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      */
     @Deprecated
     public final EventLoopGroup group() {
-        return group;
+        return group; //BossGroup
     }
 
     /**
@@ -477,7 +477,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
         // Is set to the correct EventExecutor once the registration was successful. Otherwise it will
         // stay null and so the GlobalEventExecutor.INSTANCE will be used for notifications.
-        private volatile boolean registered;
+        private volatile boolean registered; //NioServerSocketChannel注册到Pipe后就会设置true
 
         PendingRegistrationPromise(Channel channel) {
             super(channel);

@@ -54,9 +54,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private static final ClosedChannelException DO_CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
             new ClosedChannelException(), AbstractNioChannel.class, "doClose()");
 
-    private final SelectableChannel ch;
-    protected final int readInterestOp;
-    volatile SelectionKey selectionKey;
+    private final SelectableChannel ch; // ServerSocketCHannelImp
+    protected final int readInterestOp;  //将在NioServerSocketChannel构造函数中，传递过来的就是OP_ACCEPT
+    volatile SelectionKey selectionKey; //在doBeginRead()中，通过selectionKey可以修改ServerSocket的可读/可接受等。。。
     boolean readPending;
     private final Runnable clearReadPendingRunnable = new Runnable() {
         @Override
@@ -82,10 +82,10 @@ public abstract class AbstractNioChannel extends AbstractChannel {
      */
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
-        this.ch = ch;
+        this.ch = ch;//就是ServerSocketChannelImp,将在NioServerSocketChannel构造函数中，传递过来的就是OP_ACCEPT,就是这个ch才能ch.socket()产生SocketChannel
         this.readInterestOp = readInterestOp;
         try {
-            ch.configureBlocking(false);
+            ch.configureBlocking(false); //对的，NIO也是这么实现的
         } catch (IOException e) {
             try {
                 ch.close();
@@ -107,11 +107,11 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
     @Override
     public NioUnsafe unsafe() {
-        return (NioUnsafe) super.unsafe();
+        return (NioUnsafe) super.unsafe();//NioMessageUnsafe
     }
 
     protected SelectableChannel javaChannel() {
-        return ch;
+        return ch; //ServerSocketCHannelImp
     }
 
     @Override
@@ -276,8 +276,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
                     promise.addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture future) throws Exception {
-                            if (future.isCancelled()) {
-                                if (connectTimeoutFuture != null) {
+                            if (future.isCancelled()) { //如果可以取消
+                                if (connectTimeoutFuture != null) { // 将去取消超时处理器，不让继续超时
                                     connectTimeoutFuture.cancel(false);
                                 }
                                 connectPromise = null;
@@ -344,7 +344,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             } finally {
                 // Check for null as the connectTimeoutFuture is only created if a connectTimeoutMillis > 0 is used
                 // See https://github.com/netty/netty/issues/1770
-                if (connectTimeoutFuture != null) {
+                if (connectTimeoutFuture != null) {  // 注意这里
                     connectTimeoutFuture.cancel(false);
                 }
                 connectPromise = null;
@@ -382,12 +382,12 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
-        for (;;) {
-            try {
-                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+        for (;;) {  //循环执行，很奇怪
+            try { //javaChannel() 这个方法在前面我们已经知道了, 它返回的是一个 Java NIO SocketChannel, 这里我们将这个 SocketChannel 注册到与 eventLoop 关联的 selector 上了.
+                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this); //// 将连接注册到selector，此时虽然有注册，但ops为0，即没有关注的事件
                 return;
             } catch (CancelledKeyException e) {
-                if (!selected) {
+                if (!selected) { // // 强制Selector调用select now，防止取消的SelectionKey未真正取消（因为还没有调用到Select.select(..))
                     // Force the Selector to select now as the "canceled" SelectionKey may still be
                     // cached and not removed because no Select.select(..) operation was called yet.
                     eventLoop().selectNow();
@@ -417,7 +417,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         readPending = true;
 
         final int interestOps = selectionKey.interestOps();
-        if ((interestOps & readInterestOp) == 0) {
+        if ((interestOps & readInterestOp) == 0) { //将设置可接受
             selectionKey.interestOps(interestOps | readInterestOp);
         }
     }
@@ -448,7 +448,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         if (alloc.isDirectBufferPooled()) {
             ByteBuf directBuf = alloc.directBuffer(readableBytes);
             directBuf.writeBytes(buf, buf.readerIndex(), readableBytes);
-            ReferenceCountUtil.safeRelease(buf);
+            ReferenceCountUtil.safeRelease(buf); //转化的同时， 将heap部分清空
             return directBuf;
         }
 

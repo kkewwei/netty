@@ -61,7 +61,7 @@ public class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implemen
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        ctx.fireChannelActive();
+        ctx.fireChannelActive(); //向下一层发送channelActive信号
     }
 
     /**

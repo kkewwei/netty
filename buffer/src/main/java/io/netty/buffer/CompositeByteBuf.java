@@ -42,13 +42,13 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  * constructor explicitly.
  */
 public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements Iterable<ByteBuf> {
-
+   //这个CompositeByteBuf也是有write和read的
     private static final ByteBuffer EMPTY_NIO_BUFFER = Unpooled.EMPTY_BUFFER.nioBuffer();
     private static final Iterator<ByteBuf> EMPTY_ITERATOR = Collections.<ByteBuf>emptyList().iterator();
 
     private final ByteBufAllocator alloc;
     private final boolean direct;
-    private final List<Component> components;
+    private final List<Component> components;//是一个ArrayList
     private final int maxNumComponents;
 
     private boolean freed;
@@ -192,7 +192,7 @@ public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements
      */
     public CompositeByteBuf addComponent(boolean increaseWriterIndex, ByteBuf buffer) {
         checkNotNull(buffer, "buffer");
-        addComponent0(increaseWriterIndex, components.size(), buffer);
+        addComponent0(increaseWriterIndex, components.size(), buffer); //
         consolidateIfNeeded();
         return this;
     }
@@ -257,9 +257,9 @@ public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements
             // No need to consolidate - just add a component to the list.
             @SuppressWarnings("deprecation")
             Component c = new Component(buffer.order(ByteOrder.BIG_ENDIAN).slice());
-            if (cIndex == components.size()) {
+            if (cIndex == components.size()) { //CompositeButeBug里面的Component的即将写入的那个
                 wasAdded = components.add(c);
-                if (cIndex == 0) {
+                if (cIndex == 0) { //第一个
                     c.endOffset = readableBytes;
                 } else {
                     Component prev = components.get(cIndex - 1);
@@ -274,7 +274,7 @@ public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements
                 }
             }
             if (increaseWriterIndex) {
-                writerIndex(writerIndex() + buffer.readableBytes());
+                writerIndex(writerIndex() + buffer.readableBytes());  //该CompositeByteBuf写的位置
             }
             return cIndex;
         } finally {
@@ -1657,11 +1657,11 @@ public class CompositeByteBuf extends AbstractReferenceCountedByteBuf implements
         return result + ", components=" + components.size() + ')';
     }
 
-    private static final class Component {
+    private static final class Component { //每个Component实际指向的是同一个数据源，offset和endOffset仅仅指向其中一段。
         final ByteBuf buf;
         final int length;
-        int offset;
-        int endOffset;
+        int offset; //标记该Component 起始位置是从CompositeByte的整个帧上第几个字符
+        int endOffset;  //标记该Component 结束位置是从CompositeByte的整个帧上第几个字符
 
         Component(ByteBuf buf) {
             this.buf = buf;

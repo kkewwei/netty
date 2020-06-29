@@ -324,7 +324,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     /**
      * Returns the {@code readerIndex} of this buffer.
      */
-    public abstract int readerIndex();
+    public abstract int readerIndex();//当前可读的位置
 
     /**
      * Sets the {@code readerIndex} of this buffer.

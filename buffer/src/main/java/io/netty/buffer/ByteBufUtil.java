@@ -598,7 +598,7 @@ public final class ByteBufUtil {
     static ByteBuf encodeString0(ByteBufAllocator alloc, boolean enforceHeap, CharBuffer src, Charset charset,
                                  int extraCapacity) {
         final CharsetEncoder encoder = CharsetUtil.encoder(charset);
-        int length = (int) ((double) src.remaining() * encoder.maxBytesPerChar()) + extraCapacity;
+        int length = (int) ((double) src.remaining() * encoder.maxBytesPerChar()) + extraCapacity;  //encoder.maxBytesPerChar()=3,字母实际扩大三倍
         boolean release = true;
         final ByteBuf dst;
         if (enforceHeap) {
@@ -607,7 +607,7 @@ public final class ByteBufUtil {
             dst = alloc.buffer(length);
         }
         try {
-            final ByteBuffer dstBuf = dst.internalNioBuffer(dst.readerIndex(), length);
+            final ByteBuffer dstBuf = dst.internalNioBuffer(dst.readerIndex(), length); //dstBuf=PooledUnsafeDirectByteBuf
             final int pos = dstBuf.position();
             CoderResult cr = encoder.encode(src, dstBuf, true);
             if (!cr.isUnderflow()) {

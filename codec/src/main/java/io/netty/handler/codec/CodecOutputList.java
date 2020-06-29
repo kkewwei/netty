@@ -144,7 +144,7 @@ final class CodecOutputList extends AbstractList<Object> implements RandomAccess
      * Returns the element on the given index. This operation will not do any range-checks and so is considered unsafe.
      */
     Object getUnsafe(int index) {
-        return array[index];
+        return array[index]; //PooledSlicedByteBud
     }
 
     private void checkIndex(int index) {

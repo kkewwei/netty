@@ -27,7 +27,7 @@ import io.netty.util.concurrent.GenericFutureListener;
  */
 public class DefaultChannelPromise extends DefaultPromise<Void> implements ChannelPromise, FlushCheckpoint {
 
-    private final Channel channel;
+    private final Channel channel;//NioServerSocket
     private long checkpoint;
 
     /**
@@ -46,9 +46,9 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
      * @param channel
      *        the {@link Channel} associated with this future
      */
-    public DefaultChannelPromise(Channel channel, EventExecutor executor) {
+    public DefaultChannelPromise(Channel channel, EventExecutor executor) { //进来是NioEventLoop
         super(executor);
-        this.channel = channel;
+        this.channel = channel; //NioServerSocketChannel
     }
 
     @Override
@@ -63,7 +63,7 @@ public class DefaultChannelPromise extends DefaultPromise<Void> implements Chann
 
     @Override
     public Channel channel() {
-        return channel;
+        return channel;//NioServerSocketChannel
     }
 
     @Override

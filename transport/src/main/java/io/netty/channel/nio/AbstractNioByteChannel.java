@@ -52,7 +52,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
      * @param ch                the underlying {@link SelectableChannel} on which it operates
      */
     protected AbstractNioByteChannel(Channel parent, SelectableChannel ch) {
-        super(parent, ch, SelectionKey.OP_READ);
+        super(parent, ch, SelectionKey.OP_READ); //一开始只关注可读
     }
 
     /**
@@ -91,14 +91,14 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
         private void handleReadException(ChannelPipeline pipeline, ByteBuf byteBuf, Throwable cause, boolean close,
                 RecvByteBufAllocator.Handle allocHandle) {
-            if (byteBuf != null) {
+            if (byteBuf != null) {          // 如果读取到了数据则继续处理,否则释放ByteBuf
                 if (byteBuf.isReadable()) {
                     readPending = false;
                     pipeline.fireChannelRead(byteBuf);
                 } else {
                     byteBuf.release();
                 }
-            }
+            }// 触发读取完成事件，触发异常捕获事件。需要的时候关闭连接
             allocHandle.readComplete();
             pipeline.fireChannelReadComplete();
             pipeline.fireExceptionCaught(cause);
@@ -111,17 +111,17 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         public final void read() {
             final ChannelConfig config = config();
             final ChannelPipeline pipeline = pipeline();
-            final ByteBufAllocator allocator = config.getAllocator();
-            final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
-            allocHandle.reset(config);
+            final ByteBufAllocator allocator = config.getAllocator();//为了减少分配和释放内存的总开销，Netty通过ByteBufAllocator实现ByteBuf池，ByteBufAllocator负责分配ByteBuf实例。
+            final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();//// allocHandle主要用于预估本次ByteBuf的初始大小，避免分配太多导致浪费或者分配过小放不下单次读取的数据而需要多次读取
+            allocHandle.reset(config);//allocHandle = AdaptiveRecvByteBufAllocator.$HandleImpl
 
             ByteBuf byteBuf = null;
             boolean close = false;
             try {
                 do {
-                    byteBuf = allocHandle.allocate(allocator);
+                    byteBuf = allocHandle.allocate(allocator); //byteBuf = PooledUnsafeDirectByteBuf，是直接内存
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
-                    if (allocHandle.lastBytesRead() <= 0) {
+                    if (allocHandle.lastBytesRead() <= 0) { // 未读取到数据则直接释放该ByteBuf,如果返回-1表示读取出错，后面会关闭该连接
                         // nothing was read. release the buffer.
                         byteBuf.release();
                         byteBuf = null;
@@ -135,10 +135,10 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                     byteBuf = null;
                 } while (allocHandle.continueReading());
 
-                allocHandle.readComplete();
-                pipeline.fireChannelReadComplete();
+                allocHandle.readComplete();//记录本次读取到的数据长度（用于计算下次分配ByteBuf时的初始化大小）
+                pipeline.fireChannelReadComplete();// 本轮数据读取完毕
 
-                if (close) {
+                if (close) {// 如果读取的时候发生错误则关闭连接
                     closeOnRead(pipeline);
                 }
             } catch (Throwable t) {
@@ -248,7 +248,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
     }
 
     @Override
-    protected final Object filterOutboundMessage(Object msg) {
+    protected final Object filterOutboundMessage(Object msg) {//必须要是直接内存才行，不是的话，需要转化
         if (msg instanceof ByteBuf) {
             ByteBuf buf = (ByteBuf) msg;
             if (buf.isDirect()) {

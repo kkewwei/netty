@@ -74,11 +74,11 @@ public final class ChannelOutboundBuffer {
     // The Entry that is the first in the linked-list structure that was flushed
     private Entry flushedEntry;
     // The Entry which is the first unflushed in the linked-list structure
-    private Entry unflushedEntry;
+    private Entry unflushedEntry;  //存放的是整个刷新时候帧的头部
     // The Entry which represents the tail of the buffer
-    private Entry tailEntry;
+    private Entry tailEntry; //存放的是整个刷新时候帧的尾部
     // The number of flushed entries that are not written yet
-    private int flushed;
+    private int flushed; //刷新时候链的长度
 
     private int nioBufferCount;
     private long nioBufferSize;
@@ -89,13 +89,13 @@ public final class ChannelOutboundBuffer {
             AtomicLongFieldUpdater.newUpdater(ChannelOutboundBuffer.class, "totalPendingSize");
 
     @SuppressWarnings("UnusedDeclaration")
-    private volatile long totalPendingSize;
+    private volatile long totalPendingSize; //目前等待发送的数据
 
     private static final AtomicIntegerFieldUpdater<ChannelOutboundBuffer> UNWRITABLE_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(ChannelOutboundBuffer.class, "unwritable");
+            AtomicIntegerFieldUpdater.newUpdater(ChannelOutboundBuffer.class, "unwritable"); //原子属性，直接通过该类修改属性unwritable的值
 
     @SuppressWarnings("UnusedDeclaration")
-    private volatile int unwritable;
+    private volatile int unwritable;//0为可写，1为不可写 通过UNWRITABLE_UPDATER被原子改变
 
     private volatile Runnable fireChannelWritabilityChangedTask;
 
@@ -107,12 +107,12 @@ public final class ChannelOutboundBuffer {
      * Add given message to this {@link ChannelOutboundBuffer}. The given {@link ChannelPromise} will be notified once
      * the message was written.
      */
-    public void addMessage(Object msg, int size, ChannelPromise promise) {
+    public void addMessage(Object msg, int size, ChannelPromise promise) { //msg=PooledUnsafeDirectBtyeBuf
         Entry entry = Entry.newInstance(msg, size, total(msg), promise);
-        if (tailEntry == null) {
+        if (tailEntry == null) {// //把消息封装成一个entry，然后塞到一个单链表中
             flushedEntry = null;
             tailEntry = entry;
-        } else {
+        } else { //注意若不是的话，形成的是一个链
             Entry tail = tailEntry;
             tail.next = entry;
             tailEntry = entry;
@@ -123,7 +123,7 @@ public final class ChannelOutboundBuffer {
 
         // increment pending bytes after adding message to the unflushed arrays.
         // See https://github.com/netty/netty/issues/1619
-        incrementPendingOutboundBytes(entry.pendingSize, false);
+        incrementPendingOutboundBytes(entry.pendingSize, false);////修改当前缓冲区的水位
     }
 
     /**
@@ -135,7 +135,7 @@ public final class ChannelOutboundBuffer {
         // where added in the meantime.
         //
         // See https://github.com/netty/netty/issues/2577
-        Entry entry = unflushedEntry;
+        Entry entry = unflushedEntry; //存放的
         if (entry != null) {
             if (flushedEntry == null) {
                 // there is no flushedEntry yet, so start with the entry
@@ -152,7 +152,7 @@ public final class ChannelOutboundBuffer {
             } while (entry != null);
 
             // All flushed so reset unflushedEntry
-            unflushedEntry = null;
+            unflushedEntry = null;  //直接将本链给flushedEntry续着
         }
     }
 
@@ -168,9 +168,9 @@ public final class ChannelOutboundBuffer {
         if (size == 0) {
             return;
         }
-
-        long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);
-        if (newWriteBufferSize > channel.config().getWriteBufferHighWaterMark()) {
+        //ChannelConfig默认的水位配置为低水位32K，高水位64K
+        long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);////原子更新一下当前的水位，并获取最新的水位信息
+        if (newWriteBufferSize > channel.config().getWriteBufferHighWaterMark()) {//如果当前的水位高于配置的高水位，那么就要调用setUnwriteable方法
             setUnwritable(invokeLater);
         }
     }
@@ -244,7 +244,7 @@ public final class ChannelOutboundBuffer {
             clearNioBuffers();
             return false;
         }
-        Object msg = e.msg;
+        Object msg = e.msg; //PooledUnsafeDirectByteBuf
 
         ChannelPromise promise = e.promise;
         int size = e.pendingSize;
@@ -253,13 +253,13 @@ public final class ChannelOutboundBuffer {
 
         if (!e.cancelled) {
             // only release message, notify and decrement if it was not canceled before.
-            ReferenceCountUtil.safeRelease(msg);
+            ReferenceCountUtil.safeRelease(msg); //释放了直接内存地址，
             safeSuccess(promise);
             decrementPendingOutboundBytes(size, false, true);
         }
 
         // recycle the entry
-        e.recycle();
+        e.recycle(); //释放Entry
 
         return true;
     }
@@ -399,11 +399,11 @@ public final class ChannelOutboundBuffer {
                         entry.count = count =  buf.nioBufferCount();
                     }
                     int neededSpace = nioBufferCount + count;
-                    if (neededSpace > nioBuffers.length) {
-                        nioBuffers = expandNioBufferArray(nioBuffers, neededSpace, nioBufferCount);
+                    if (neededSpace > nioBuffers.length) { //若content+message 个数是否超过上限1024个
+                        nioBuffers = expandNioBufferArray(nioBuffers, neededSpace, nioBufferCount);  //不够放的话，则扩容一倍
                         NIO_BUFFERS.set(threadLocalMap, nioBuffers);
                     }
-                    if (count == 1) {
+                    if (count == 1) { //基本始终是在这里，
                         ByteBuffer nioBuf = entry.buf;
                         if (nioBuf == null) {
                             // cache ByteBuffer as it may need to create a new ByteBuffer instance if its a
@@ -424,8 +424,8 @@ public final class ChannelOutboundBuffer {
             }
             entry = entry.next;
         }
-        this.nioBufferCount = nioBufferCount;
-        this.nioBufferSize = nioBufferSize;
+        this.nioBufferCount = nioBufferCount;//总的个数
+        this.nioBufferSize = nioBufferSize; //这次发送总的大小
 
         return nioBuffers;
     }
@@ -554,14 +554,14 @@ public final class ChannelOutboundBuffer {
         }
     }
 
-    private void setUnwritable(boolean invokeLater) {
+    private void setUnwritable(boolean invokeLater) {//此处调用的时候invokeLater是false
         for (;;) {
             final int oldValue = unwritable;
             final int newValue = oldValue | 1;
-            if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {
-                if (oldValue == 0 && newValue != 0) {
-                    fireChannelWritabilityChanged(invokeLater);
-                }
+            if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {//高水位的时候就会可以通知到业务handler中的WritabilityChanged方法，并且修改buffer的状态
+                if (oldValue == 0 && newValue != 0) {//如果之前的状态是可写，现在的状态是不可写，就要调用pipeline上handerd的lWritabilityChanged方法
+                    fireChannelWritabilityChanged(invokeLater);//
+                }//事实上，达到高水位之后，Netty仅仅会发送一个Channle状态位变更事件通知，并不会阻止用户继续发送消息.发现的确如此。
                 break;
             }
         }
@@ -569,7 +569,7 @@ public final class ChannelOutboundBuffer {
 
     private void fireChannelWritabilityChanged(boolean invokeLater) {
         final ChannelPipeline pipeline = channel.pipeline();
-        if (invokeLater) {
+        if (invokeLater) { //过会调用
             Runnable task = fireChannelWritabilityChangedTask;
             if (task == null) {
                 fireChannelWritabilityChangedTask = task = new Runnable() {
@@ -580,7 +580,7 @@ public final class ChannelOutboundBuffer {
                 };
             }
             channel.eventLoop().execute(task);
-        } else {
+        } else {//立即调用
             pipeline.fireChannelWritabilityChanged();
         }
     }
@@ -763,7 +763,7 @@ public final class ChannelOutboundBuffer {
         Entry next;
         Object msg;
         ByteBuffer[] bufs;
-        ByteBuffer buf;
+        ByteBuffer buf;//DirectByteBuffer
         ChannelPromise promise;
         long progress;
         long total;
@@ -774,7 +774,7 @@ public final class ChannelOutboundBuffer {
         private Entry(Handle<Entry> handle) {
             this.handle = handle;
         }
-
+        //
         static Entry newInstance(Object msg, int size, long total, ChannelPromise promise) {
             Entry entry = RECYCLER.get();
             entry.msg = msg;

@@ -56,7 +56,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
                                     boolean addTaskWakesUp, int maxPendingTasks,
                                     RejectedExecutionHandler rejectedExecutionHandler) {
         super(parent, executor, addTaskWakesUp, maxPendingTasks, rejectedExecutionHandler);
-        tailTasks = newTaskQueue(maxPendingTasks);
+        tailTasks = newTaskQueue(maxPendingTasks); //MpscChunkedArrayQueue
     }
 
     @Override
@@ -107,7 +107,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
             reject();
         }
 
-        if (!tailTasks.offer(task)) {
+        if (!tailTasks.offer(task)) { //存放消息
             reject(task);
         }
 
@@ -135,11 +135,11 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
 
     @Override
     protected void afterRunningAllTasks() {
-        runAllTasksFrom(tailTasks);
+        runAllTasksFrom(tailTasks); //SingleThreadEventExecutor.
     }
 
     @Override
-    protected boolean hasTasks() {
+    protected boolean hasTasks() { //没有任务的标准：taskQueue为空，tailTasks也为空
         return super.hasTasks() || !tailTasks.isEmpty();
     }
 

@@ -107,7 +107,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
     /**
      * Returns {@code true} if the {@link Channel} is registered with an {@link EventLoop}.
      */
-    boolean isRegistered();
+    boolean isRegistered(); //该channel是否已经注册到了一个EventLoop
 
     /**
      * Return {@code true} if the {@link Channel} is active and so connected.
@@ -174,7 +174,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
 
     /**
      * Returns an <em>internal-use-only</em> object that provides unsafe operations.
-     */
+     */   //NioMessageUnsafe
     Unsafe unsafe();
 
     /**

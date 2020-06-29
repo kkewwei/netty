@@ -28,9 +28,9 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
     protected PoolChunk<T> chunk;
     protected long handle;
-    protected T memory;
-    protected int offset;
-    protected int length;
+    protected T memory; //就是DirectByteBuffer
+    protected int offset; //当前直接内存的偏移量   实际内存=PooledUnsafeDirectByteBuf.memoryAddress+offset(见PooledUnsafeDirectByteBuf中initMemoryAddress定义)
+    protected int length;//当前长度,用于实现当前容量值。
     int maxLength;
     PoolThreadCache cache;
     private ByteBuffer tmpNioBuf;
@@ -146,14 +146,14 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     }
 
     @Override
-    public final ByteBuf retainedSlice(int index, int length) {
+    public final ByteBuf retainedSlice(int index, int length) { //公用一个底层
         return PooledSlicedByteBuf.newInstance(this, this, index, length);
     }
 
     protected final ByteBuffer internalNioBuffer() {
         ByteBuffer tmpNioBuf = this.tmpNioBuf;
         if (tmpNioBuf == null) {
-            this.tmpNioBuf = tmpNioBuf = newInternalNioBuffer(memory);
+            this.tmpNioBuf = tmpNioBuf = newInternalNioBuffer(memory);  //会跑到PooledUnsafeDirectByteBuf.newInternalNioBuffer()，两个之间相当于引用
         }
         return tmpNioBuf;
     }
@@ -169,11 +169,11 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             tmpNioBuf = null;
             chunk.arena.free(chunk, handle, maxLength, cache);
             chunk = null;
-            recycle();
+            recycle(); //释放
         }
     }
 
-    private void recycle() {
+    private void recycle() { //
         recyclerHandle.recycle(this);
     }
 

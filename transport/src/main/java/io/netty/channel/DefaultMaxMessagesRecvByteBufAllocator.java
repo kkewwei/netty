@@ -53,8 +53,8 @@ public abstract class DefaultMaxMessagesRecvByteBufAllocator implements MaxMessa
      */
     public abstract class MaxMessageHandle implements ExtendedHandle {
         private ChannelConfig config;
-        private int maxMessagePerRead;
-        private int totalMessages;
+        private int maxMessagePerRead;///这里的值代表循环的最大次数，对于NioServerSocketChannel来说也就是单次最大接受的连接数，默认为16，
+        private int totalMessages; //当前的连接数，不能超过16个
         private int totalBytesRead;
         private int attemptedBytesRead;
         private int lastBytesRead;
@@ -102,7 +102,7 @@ public abstract class DefaultMaxMessagesRecvByteBufAllocator implements MaxMessa
         public boolean continueReading() {
             return continueReading(defaultMaybeMoreSupplier);
         }
-
+        //继续读取的条件是；当前连接数要少于16个maxMessagePerRead
         @Override
         public boolean continueReading(UncheckedBooleanSupplier maybeMoreDataSupplier) {
             return config.isAutoRead() &&

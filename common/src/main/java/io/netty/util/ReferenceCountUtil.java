@@ -67,7 +67,7 @@ public final class ReferenceCountUtil {
      * {@link ReferenceCounted}.  If the specified message doesn't implement {@link ReferenceCounted},
      * this method does nothing.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked")   //为了代码追踪用
     public static <T> T touch(T msg, Object hint) {
         if (msg instanceof ReferenceCounted) {
             return (T) ((ReferenceCounted) msg).touch(hint);

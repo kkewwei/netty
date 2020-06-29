@@ -154,7 +154,7 @@ public final class Unpooled {
         if (array.length == 0) {
             return EMPTY_BUFFER;
         }
-        return new UnpooledHeapByteBuf(ALLOC, array, array.length);
+        return new UnpooledHeapByteBuf(ALLOC, array, array.length);//堆内存
     }
 
     /**
@@ -432,8 +432,8 @@ public final class Unpooled {
     public static ByteBuf copiedBuffer(ByteBuf buffer) {
         int readable = buffer.readableBytes();
         if (readable > 0) {
-            ByteBuf copy = buffer(readable);
-            copy.writeBytes(buffer, buffer.readerIndex(), readable);
+            ByteBuf copy = buffer(readable); //创建堆内存
+            copy.writeBytes(buffer, buffer.readerIndex(), readable);// 将CompositeByteBuf转化为堆内存。
             return copy;
         } else {
             return EMPTY_BUFFER;

@@ -23,7 +23,7 @@ import io.netty.util.internal.StringUtil;
  */
 public class ReflectiveChannelFactory<T extends Channel> implements ChannelFactory<T> {
 
-    private final Class<? extends T> clazz;
+    private final Class<? extends T> clazz;  //服务器端一般指定为OioServerSocketChannel，客户端一般指定为OioSocketChannel
 
     public ReflectiveChannelFactory(Class<? extends T> clazz) {
         if (clazz == null) {

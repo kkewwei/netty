@@ -137,7 +137,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
      * go down below {@code 64}, and does not go up above {@code 65536}.
      */
     public AdaptiveRecvByteBufAllocator() {
-        this(DEFAULT_MINIMUM, DEFAULT_INITIAL, DEFAULT_MAXIMUM);
+        this(DEFAULT_MINIMUM, DEFAULT_INITIAL, DEFAULT_MAXIMUM); //这里定义的默认最小64， 默认最大65536，初始1024
     }
 
     /**

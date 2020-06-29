@@ -127,7 +127,7 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
     protected final boolean hasScheduledTasks() {
         Queue<ScheduledFutureTask<?>> scheduledTaskQueue = this.scheduledTaskQueue;
         ScheduledFutureTask<?> scheduledTask = scheduledTaskQueue == null ? null : scheduledTaskQueue.peek();
-        return scheduledTask != null && scheduledTask.deadlineNanos() <= nanoTime();
+        return scheduledTask != null && scheduledTask.deadlineNanos() <= nanoTime(); //已经过了截止的相对时间
     }
 
     @Override

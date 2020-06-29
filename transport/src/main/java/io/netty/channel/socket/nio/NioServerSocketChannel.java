@@ -82,9 +82,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     /**
      * Create a new instance using the given {@link ServerSocketChannel}.
      */
-    public NioServerSocketChannel(ServerSocketChannel channel) {
-        super(null, channel, SelectionKey.OP_ACCEPT);
-        config = new NioServerSocketChannelConfig(this, javaChannel().socket());
+    public NioServerSocketChannel(ServerSocketChannel channel) { //ServerSocketChannelImp
+        super(null, channel, SelectionKey.OP_ACCEPT); //会定义DefaultChannelPipeline，Selector选择监听Accept类型channel事件
+        config = new NioServerSocketChannelConfig(this, javaChannel().socket()); //这里也很重要，回去单独创建SocketChannel
     }
 
     @Override
@@ -113,7 +113,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     }
 
     @Override
-    protected ServerSocketChannel javaChannel() {
+    protected ServerSocketChannel javaChannel() { //就是ServerSocketCHannelImp
         return (ServerSocketChannel) super.javaChannel();
     }
 
@@ -125,7 +125,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
         if (PlatformDependent.javaVersion() >= 7) {
-            javaChannel().bind(localAddress, config.getBacklog());
+            javaChannel().bind(localAddress, config.getBacklog()); //调用java底层的绑定
         } else {
             javaChannel().socket().bind(localAddress, config.getBacklog());
         }
@@ -138,11 +138,11 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
-        SocketChannel ch = SocketUtils.accept(javaChannel());
+        SocketChannel ch = SocketUtils.accept(javaChannel()); //接受连接请求，产生一个SocketChannelImpl，
 
         try {
             if (ch != null) {
-                buf.add(new NioSocketChannel(this, ch));
+                buf.add(new NioSocketChannel(this, ch)); //这里就是新产生的NioSocketChannel,ch=SocketChannel
                 return 1;
             }
         } catch (Throwable t) {
@@ -192,7 +192,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     private final class NioServerSocketChannelConfig extends DefaultServerSocketChannelConfig {
         private NioServerSocketChannelConfig(NioServerSocketChannel channel, ServerSocket javaSocket) {
-            super(channel, javaSocket);
+            super(channel, javaSocket);  //NioServerSocketChannel， javaSocket = ServerScketAdaptor
         }
 
         @Override

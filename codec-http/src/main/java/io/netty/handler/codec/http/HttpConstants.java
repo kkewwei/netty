@@ -24,15 +24,15 @@ public final class HttpConstants {
     /**
      * Horizontal space
      */
-    public static final byte SP = 32;
+    public static final byte SP = 32;  //空格
 
     /**
      * Horizontal tab
      */
-    public static final byte HT = 9;
+    public static final byte HT = 9;//水平制表符
 
     /**
-     * Carriage return
+     * Carriage return   回车键
      */
     public static final byte CR = 13;
 
@@ -44,7 +44,7 @@ public final class HttpConstants {
     /**
      * Line feed character
      */
-    public static final byte LF = 10;
+    public static final byte LF = 10;   //换行符
 
     /**
      * Colon ':'

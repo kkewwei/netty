@@ -30,8 +30,8 @@ import java.nio.ByteBuffer;
  * For more details see <a href="https://github.com/netty/netty/issues/2604">#2604</a>.
  */
 final class CleanerJava6 implements Cleaner {
-    private static final long CLEANER_FIELD_OFFSET;
-    private static final Method CLEAN_METHOD;
+    private static final long CLEANER_FIELD_OFFSET; //随便产生了一个DircetByteBuff，里面的cleaner的直接内存地址
+    private static final Method CLEAN_METHOD;  //DircetByteBuff中cleaner的直接内存地址
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(CleanerJava6.class);
 
@@ -46,7 +46,7 @@ final class CleanerJava6 implements Cleaner {
                 fieldOffset = PlatformDependent0.objectFieldOffset(cleanerField);
                 Object cleaner = PlatformDependent0.getObject(direct, fieldOffset);
                 clean = cleaner.getClass().getDeclaredMethod("clean");
-                clean.invoke(cleaner);
+                clean.invoke(cleaner); //调用clean，回收此直接内存
             } catch (Throwable t) {
                 // We don't have ByteBuffer.cleaner().
                 fieldOffset = -1;
@@ -61,8 +61,8 @@ final class CleanerJava6 implements Cleaner {
         } else {
             logger.debug("java.nio.ByteBuffer.cleaner(): unavailable", error);
         }
-        CLEANER_FIELD_OFFSET = fieldOffset;
-        CLEAN_METHOD = clean;
+        CLEANER_FIELD_OFFSET = fieldOffset; //DircetByteBuff中cleaner的直接内存地址
+        CLEAN_METHOD = clean;   ////DircetByteBuff中cleaner的直接内存地址
     }
 
     static boolean isSupported() {
@@ -74,8 +74,8 @@ final class CleanerJava6 implements Cleaner {
         if (!buffer.isDirect()) {
             return;
         }
-        try {
-            Object cleaner = PlatformDependent0.getObject(buffer, CLEANER_FIELD_OFFSET);
+        try {  //一般通过address+cap构建的直接内幕才能，cleaner都为null
+            Object cleaner = PlatformDependent0.getObject(buffer, CLEANER_FIELD_OFFSET); //获取传递进来的buffer的clean对象
             if (cleaner != null) {
                 CLEAN_METHOD.invoke(cleaner);
             }

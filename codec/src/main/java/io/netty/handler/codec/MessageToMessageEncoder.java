@@ -85,9 +85,9 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
                 try {
-                    encode(ctx, cast, out);
-                } finally {
-                    ReferenceCountUtil.release(cast);
+                    encode(ctx, cast, out);  //比如压缩之后， 就不再是以前的元素了。里面需要的话，把cast.refcount+1了,后面就释放资源释放不了了
+                } finally {  //外面总是要release一次，里面想继续用的话，就+1
+                    ReferenceCountUtil.release(cast);//之前的元素就要必须开始释放了, 对于压缩型，主要是释放的CompositeBuf
                 }
 
                 if (out.isEmpty()) {
@@ -107,14 +107,14 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
         } finally {
             if (out != null) {
                 final int sizeMinusOne = out.size() - 1;
-                if (sizeMinusOne == 0) {
+                if (sizeMinusOne == 0) { //始终sizeMinusOne都是0
                     ctx.write(out.get(0), promise);
                 } else if (sizeMinusOne > 0) {
                     // Check if we can use a voidPromise for our extra writes to reduce GC-Pressure
                     // See https://github.com/netty/netty/issues/2525
                     ChannelPromise voidPromise = ctx.voidPromise();
                     boolean isVoidPromise = promise == voidPromise;
-                    for (int i = 0; i < sizeMinusOne; i ++) {
+                    for (int i = 0; i < sizeMinusOne; i ++) {//分开向下发送
                         ChannelPromise p;
                         if (isVoidPromise) {
                             p = voidPromise;

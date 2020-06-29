@@ -54,8 +54,8 @@ import java.util.List;
 public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
 
     private final ByteOrder byteOrder;
-    private final int lengthFieldLength;
-    private final boolean lengthIncludesLengthFieldLength;
+    private final int lengthFieldLength;//长度属性的字节长度
+    private final boolean lengthIncludesLengthFieldLength;//false，长度字节不算在总长度中，true，算到总长度中
     private final int lengthAdjustment;
 
     /**
@@ -158,8 +158,8 @@ public class LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        int length = msg.readableBytes() + lengthAdjustment;
-        if (lengthIncludesLengthFieldLength) {
+        int length = msg.readableBytes() + lengthAdjustment; //目前数据的真是长度
+        if (lengthIncludesLengthFieldLength) { //包含length本身的长度的话
             length += lengthFieldLength;
         }
 

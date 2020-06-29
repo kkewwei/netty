@@ -29,7 +29,7 @@ import io.netty.handler.codec.compression.ZlibWrapper;
  * {@code gzip} or {@code deflate} encoding.  For more information on how this
  * handler modifies the message, please refer to {@link HttpContentDecoder}.
  */
-public class HttpContentDecompressor extends HttpContentDecoder {
+public class HttpContentDecompressor extends HttpContentDecoder { //内容解码器， messageToMessage类型
 
     private final boolean strict;
 
@@ -52,7 +52,7 @@ public class HttpContentDecompressor extends HttpContentDecoder {
 
     @Override
     protected EmbeddedChannel newContentDecoder(String contentEncoding) throws Exception {
-        if (GZIP.contentEqualsIgnoreCase(contentEncoding) ||
+        if (GZIP.contentEqualsIgnoreCase(contentEncoding) || //若不定义，则为gzip
             X_GZIP.contentEqualsIgnoreCase(contentEncoding)) {
             return new EmbeddedChannel(ctx.channel().id(), ctx.channel().metadata().hasDisconnect(),
                     ctx.channel().config(), ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP));
@@ -66,6 +66,6 @@ public class HttpContentDecompressor extends HttpContentDecoder {
         }
 
         // 'identity' or unsupported
-        return null;
+        return null;   //identity的还不支持
     }
 }

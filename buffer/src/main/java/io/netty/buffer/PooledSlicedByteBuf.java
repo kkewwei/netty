@@ -48,7 +48,7 @@ final class PooledSlicedByteBuf extends AbstractPooledDerivedByteBuf {
     private static PooledSlicedByteBuf newInstance0(AbstractByteBuf unwrapped, ByteBuf wrapped,
                                                     int adjustment, int length) {
         final PooledSlicedByteBuf slice = RECYCLER.get();
-        slice.init(unwrapped, wrapped, 0, length, length);
+        slice.init(unwrapped, wrapped, 0, length, length); //这里会对底层增加引用
         slice.discardMarks();
         slice.adjustment = adjustment;
 

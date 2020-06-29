@@ -32,13 +32,13 @@ final class HttpHeadersEncoder {
         final int entryLen = nameLen + valueLen + 4;
         buf.ensureWritable(entryLen);
         int offset = buf.writerIndex();
-        writeAscii(buf, offset, name);
+        writeAscii(buf, offset, name); // buf.setCharSequence(offset, value, CharsetUtil.US_ASCII);
         offset += nameLen;
-        buf.setByte(offset ++, ':');
-        buf.setByte(offset ++, ' ');
+        buf.setByte(offset ++, ':');//:
+        buf.setByte(offset ++, ' ');//空格
         writeAscii(buf, offset, value);
         offset += valueLen;
-        buf.setByte(offset ++, '\r');
+        buf.setByte(offset ++, '\r');//
         buf.setByte(offset ++, '\n');
         buf.writerIndex(offset);
     }

@@ -54,7 +54,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     private static final int DEFAULT_MAX_COMPOSITEBUFFER_COMPONENTS = 1024;
 
     private final int maxContentLength;
-    private O currentMessage;
+    private O currentMessage; //AggregatedFullHttpRequest存放着全部数据，当没有聚合完成，就只会把中间结果放在这里而不是继续向下一个聚合器发送
     private boolean handlingOversizedMessage;
 
     private int maxCumulationBufferComponents = DEFAULT_MAX_COMPOSITEBUFFER_COMPONENTS;
@@ -190,9 +190,9 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
         return ctx;
     }
 
-    @Override
+    @Override  //解析分头和内容两部分
     protected void decode(final ChannelHandlerContext ctx, I msg, List<Object> out) throws Exception {
-        if (isStartMessage(msg)) {
+        if (isStartMessage(msg)) {//会跑到HttpObjectAggregator里面，只要是HttpMessage类型就行
             handlingOversizedMessage = false;
             if (currentMessage != null) {
                 currentMessage.release();
@@ -201,12 +201,12 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             }
 
             @SuppressWarnings("unchecked")
-            S m = (S) msg;
+            S m = (S) msg; //DefaultHttpRequest
 
             // Send the continue response if necessary (e.g. 'Expect: 100-continue' header)
             // Check before content length. Failing an expectation may result in a different response being sent.
-            Object continueResponse = newContinueResponse(m, maxContentLength, ctx.pipeline());
-            if (continueResponse != null) {
+            Object continueResponse = newContinueResponse(m, maxContentLength, ctx.pipeline());//跑到HttpObjectAggregator里面，第一次返回DefaultFullHttpResponse
+            if (continueResponse != null) { //向客户端返回100-continue, 告诉客户端可以发送content了
                 // Cache the write listener for reuse.
                 ChannelFutureListener listener = continueResponseWriteListener;
                 if (listener == null) {
@@ -233,7 +233,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
                 if (handlingOversizedMessage) {
                     return;
                 }
-            } else if (isContentLengthInvalid(m, maxContentLength)) {
+            } else if (isContentLengthInvalid(m, maxContentLength)) { //检查length是否有效，
                 // if content length is set, preemptively close if it's too large
                 invokeHandleOversizedMessage(ctx, m);
                 return;
@@ -250,14 +250,14 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
                 out.add(aggregated);
                 return;
             }
-
+             //同时生成好Compent
             // A streamed message - initialize the cumulative buffer, and wait for incoming chunks.
-            CompositeByteBuf content = ctx.alloc().compositeBuffer(maxCumulationBufferComponents);
+            CompositeByteBuf content = ctx.alloc().compositeBuffer(maxCumulationBufferComponents);//只有start类型数值才能生成CompositeByteBuf，后面内容部分只管向里面添加即可
             if (m instanceof ByteBufHolder) {
                 appendPartialContent(content, ((ByteBufHolder) m).content());
             }
-            currentMessage = beginAggregation(m, content);
-        } else if (isContentMessage(msg)) {
+            currentMessage = beginAggregation(m, content); //currentMessage = AggregatedFullHttpRequest
+        } else if (isContentMessage(msg)) { //解析内容部分
             if (currentMessage == null) {
                 // it is possible that a TooLongFrameException was already thrown but we can still discard data
                 // until the begging of the next request/response.
@@ -268,7 +268,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             CompositeByteBuf content = (CompositeByteBuf) currentMessage.content();
 
             @SuppressWarnings("unchecked")
-            final C m = (C) msg;
+            final C m = (C) msg; //可能是DefaultLastHttpContent
             // Handle oversized message.
             if (content.readableBytes() > maxContentLength - m.content().readableBytes()) {
                 // By convention, full message type extends first message type.
@@ -279,10 +279,10 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             }
 
             // Append the content of the chunk.
-            appendPartialContent(content, m.content());
-
+            appendPartialContent(content, m.content()); //把产生的数据添加到末尾
+            //里面对content.refcount+1是因为content放在了数组里面，后面要用，但是退出推refcount-1
             // Give the subtypes a chance to merge additional information such as trailing headers.
-            aggregate(currentMessage, m);
+            aggregate(currentMessage, m);  //HttpObjectAggregator.aggregate()    currentMessage=AggregatedFullHttpRequest
 
             final boolean last;
             if (m instanceof DecoderResultProvider) {
@@ -300,11 +300,11 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
                 last = isLastContentMessage(m);
             }
 
-            if (last) {
+            if (last) {  //如果Content是最后一个，那么就开始组合了，向out添加结果后就可以继续发送，否则就直接退出了，
                 finishAggregation(currentMessage);
 
                 // All done
-                out.add(currentMessage);
+                out.add(currentMessage); //把结果放进来意味着继续向下一个处理器发送，否则就直接接受下一个chunked。
                 currentMessage = null;
             }
         } else {
@@ -314,7 +314,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
 
     private static void appendPartialContent(CompositeByteBuf content, ByteBuf partialContent) {
         if (partialContent.isReadable()) {
-            content.addComponent(true, partialContent.retain());
+            content.addComponent(true, partialContent.retain()); //注意这里retaion +1了，
         }
     }
 
