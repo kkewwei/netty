@@ -144,7 +144,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
     @Override
     public final Channel channel() {
-        return channel;
+        return channel; // CopyBytesSocketChannel
     }
 
     @Override
