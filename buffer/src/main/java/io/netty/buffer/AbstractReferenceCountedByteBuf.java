@@ -94,10 +94,10 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     public ByteBuf touch(Object hint) {
         return this;
     }
-
+    // 释放掉
     @Override
     public boolean release() {
-        return handleRelease(updater.release(this));
+        return handleRelease(updater.release(this)); // 检查释放一次引用，参数是这次引用释放是否成功了
     }
 
     @Override
@@ -106,8 +106,8 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     }
 
     private boolean handleRelease(boolean result) {
-        if (result) {
-            deallocate();
+        if (result) { // 释放一次引用成功了
+            deallocate(); // 父类释放时就开始跑到PooledByteBuf.deallocate，开始真正向内存池释放了
         }
         return result;
     }

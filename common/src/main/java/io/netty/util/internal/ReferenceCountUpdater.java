@@ -131,9 +131,9 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
         }
         return instance;
     }
-
+    // 释放一次引用
     public final boolean release(T instance) {
-        int rawCnt = nonVolatileRawCnt(instance);
+        int rawCnt = nonVolatileRawCnt(instance); // 当前引用次数
         return rawCnt == 2 ? tryFinalRelease0(instance, 2) || retryRelease0(instance, 1)
                 : nonFinalRelease0(instance, 1, rawCnt, toLiveRealRefCnt(rawCnt, 1));
     }
@@ -145,7 +145,7 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
                 : nonFinalRelease0(instance, decrement, rawCnt, realCnt);
     }
 
-    private boolean tryFinalRelease0(T instance, int expectRawCnt) {
+    private boolean tryFinalRelease0(T instance, int expectRawCnt) { // 仅仅是-11
         return updater().compareAndSet(instance, expectRawCnt, 1); // any odd number will work
     }
 

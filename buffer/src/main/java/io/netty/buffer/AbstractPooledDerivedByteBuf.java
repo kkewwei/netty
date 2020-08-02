@@ -27,7 +27,7 @@ import java.nio.ByteOrder;
  */
 abstract class AbstractPooledDerivedByteBuf extends AbstractReferenceCountedByteBuf {
 
-    private final Handle<AbstractPooledDerivedByteBuf> recyclerHandle;
+    private final Handle<AbstractPooledDerivedByteBuf> recyclerHandle; // Recycler$NOOP_HANDLE
     private AbstractByteBuf rootParent;
     /**
      * Deallocations of a pooled derived buffer should always propagate through the entire chain of derived buffers.
@@ -83,7 +83,7 @@ abstract class AbstractPooledDerivedByteBuf extends AbstractReferenceCountedByte
         // otherwise it is possible that the same AbstractPooledDerivedByteBuf is again obtained and init(...) is
         // called before we actually have a chance to call release(). This leads to call release() on the wrong parent.
         ByteBuf parent = this.parent;
-        recyclerHandle.recycle(this);
+        recyclerHandle.recycle(this); // 不做任何回收
         parent.release();
     }
 
